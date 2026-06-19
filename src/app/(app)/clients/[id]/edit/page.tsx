@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { deleteClient, updateClient } from "@/lib/client-actions";
 import { saveClientSource } from "@/lib/client-source-actions";
+import { listProviderAccounts } from "@/lib/provider-accounts";
 import { getConnector } from "@/lib/connectors";
 import DeleteClientButton from "@/components/DeleteClientButton";
 import { initials } from "@/lib/initials";
@@ -33,6 +34,18 @@ export default async function EditClientPage({
   });
   const bindings = await db.clientSource.findMany({ where: { clientId: id } });
   const bindingByProvider = new Map(bindings.map((b) => [b.provider, b]));
+
+  // For each connected provider, list its accounts/properties so attribution is
+  // a dropdown (falls back to manual ID entry if listing is unavailable).
+  const accountsByProvider = new Map<string, { id: string; label: string }[]>();
+  await Promise.all(
+    connections.map(async (conn) => {
+      accountsByProvider.set(
+        conn.provider,
+        await listProviderAccounts(session.user.id, conn.provider),
+      );
+    }),
+  );
 
   return (
     <div className="mx-auto max-w-xl px-6 py-6">
@@ -122,6 +135,7 @@ export default async function EditClientPage({
             {connections.map((conn) => {
               const def = getConnector(conn.provider);
               const binding = bindingByProvider.get(conn.provider);
+              const accounts = accountsByProvider.get(conn.provider) ?? [];
               return (
                 <form
                   key={conn.provider}
@@ -134,12 +148,27 @@ export default async function EditClientPage({
                   >
                     {def?.label ?? conn.provider}
                   </span>
-                  <input
-                    name="externalId"
-                    defaultValue={binding?.externalId ?? ""}
-                    placeholder="ID propriété / page / site"
-                    className="min-w-[140px] flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-ink outline-none transition-colors focus:border-brand"
-                  />
+                  {accounts.length > 0 ? (
+                    <select
+                      name="externalId"
+                      defaultValue={binding?.externalId ?? ""}
+                      className="min-w-[160px] flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-ink outline-none transition-colors focus:border-brand"
+                    >
+                      <option value="">— Choisir un compte —</option>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      name="externalId"
+                      defaultValue={binding?.externalId ?? ""}
+                      placeholder="ID propriété / page / site"
+                      className="min-w-[140px] flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-ink outline-none transition-colors focus:border-brand"
+                    />
+                  )}
                   <input
                     name="label"
                     defaultValue={binding?.label ?? ""}

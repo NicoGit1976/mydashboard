@@ -5,6 +5,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
@@ -30,9 +31,32 @@ export async function changePassword(
 
   await db.user.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(next, 10) },
+    data: { passwordHash: await bcrypt.hash(next, 10), mustChangePassword: false },
   });
   return { ok: true, message: "Mot de passe mis à jour ✅" };
+}
+
+// First-login forced change: no "current password" needed (the user just signed
+// in with the temp one). Set the new password, clear the gate, then enter the app.
+export async function completeOnboardingPassword(
+  _prev: PasswordState,
+  formData: FormData,
+): Promise<PasswordState> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, message: "Non authentifié." };
+
+  const next = String(formData.get("next") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+  if (next.length < 8)
+    return { ok: false, message: "Le mot de passe doit faire au moins 8 caractères." };
+  if (next !== confirm)
+    return { ok: false, message: "Les deux mots de passe ne correspondent pas." };
+
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { passwordHash: await bcrypt.hash(next, 10), mustChangePassword: false },
+  });
+  redirect("/overview");
 }
 
 async function saveLogo(file: File) {

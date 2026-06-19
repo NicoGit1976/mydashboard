@@ -13,8 +13,8 @@ async function main() {
 
   const admin = await db.user.upsert({
     where: { email },
-    update: { name, role: "ADMIN" }, // never reset the password on re-seed
-    create: { email, name, passwordHash, role: "ADMIN" },
+    update: { name, role: "ADMIN" }, // never reset the password (or the flag) on re-seed
+    create: { email, name, passwordHash, role: "ADMIN", mustChangePassword: true },
   });
 
   // A little demo content so a fresh deploy isn't empty.

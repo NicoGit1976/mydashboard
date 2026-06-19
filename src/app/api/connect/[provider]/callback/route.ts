@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getConnector } from "@/lib/connectors";
 import { encrypt } from "@/lib/crypto";
+import { exchangeLongLivedToken } from "@/lib/providers/meta";
 
 // Generic OAuth callback — exchanges the code for tokens (standard OAuth2
 // authorization-code grant) and stores them encrypted.
@@ -52,23 +53,36 @@ export async function GET(
       return NextResponse.redirect(new URL(`/sources?error=token&p=${provider}`, req.url));
     }
 
+    let accessToken = data.access_token;
+    let expiresIn = data.expires_in;
+    // Meta hands back a short-lived token — swap it for a ~60-day one.
+    if (provider === "meta") {
+      const longLived = await exchangeLongLivedToken(accessToken);
+      if (longLived) {
+        accessToken = longLived;
+        expiresIn = 60 * 24 * 3600;
+      }
+    }
+    const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null;
+    const refreshToken = data.refresh_token ? encrypt(data.refresh_token) : null;
+
     await db.connection.upsert({
       where: { ownerId_provider: { ownerId: session.user.id, provider } },
       update: {
         authType: "oauth",
         status: "connected",
-        accessToken: encrypt(data.access_token),
-        refreshToken: data.refresh_token ? encrypt(data.refresh_token) : null,
-        expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null,
+        accessToken: encrypt(accessToken),
+        refreshToken,
+        expiresAt,
       },
       create: {
         ownerId: session.user.id,
         provider,
         authType: "oauth",
         status: "connected",
-        accessToken: encrypt(data.access_token),
-        refreshToken: data.refresh_token ? encrypt(data.refresh_token) : null,
-        expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null,
+        accessToken: encrypt(accessToken),
+        refreshToken,
+        expiresAt,
       },
     });
 

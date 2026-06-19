@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import Sidebar from "@/components/layout/Sidebar";
@@ -9,6 +10,16 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
+
+  // First-login gate: force a password change before anything else.
+  if (session?.user?.id) {
+    const u = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { mustChangePassword: true },
+    });
+    if (u?.mustChangePassword) redirect("/onboarding/password");
+  }
+
   const userName = session?.user?.name ?? session?.user?.email ?? "Utilisateur";
   const clients = session?.user?.id
     ? await db.client.findMany({

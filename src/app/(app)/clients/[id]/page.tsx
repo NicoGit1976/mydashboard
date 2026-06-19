@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getOrCreateReport } from "@/lib/report";
+import { getReportData } from "@/lib/report-data";
 import ReportHeader from "@/components/report/ReportHeader";
 import WidgetRenderer from "@/components/report/WidgetRenderer";
 import WidgetFrame from "@/components/report/WidgetFrame";
@@ -15,6 +16,14 @@ const SPAN_CLASS: Record<number, string> = {
   6: "col-span-12 lg:col-span-6",
   8: "col-span-12 xl:col-span-8",
   12: "col-span-12",
+};
+
+const PROVIDER_LABEL: Record<string, string> = {
+  ga4: "Google Analytics",
+  meta: "Facebook / Instagram",
+  linkedin: "LinkedIn",
+  matomo: "Matomo",
+  gmb: "Google Business",
 };
 
 export default async function ClientReportPage({
@@ -36,6 +45,7 @@ export default async function ClientReportPage({
 
   const report = await getOrCreateReport(client.id);
   const widgets = report.widgets;
+  const data = await getReportData(client);
   const owner = await db.user.findUnique({
     where: { id: session.user.id },
     select: { agencyName: true, agencyLogo: true, footerNote: true },
@@ -73,7 +83,7 @@ export default async function ClientReportPage({
               isLast={i === widgets.length - 1}
               editMode={editMode}
             >
-              <WidgetRenderer widget={w} />
+              <WidgetRenderer widget={w} data={data} />
             </WidgetFrame>
           </div>
         ))}
@@ -88,7 +98,9 @@ export default async function ClientReportPage({
       </div>
 
       <p className="no-print mt-6 text-center text-xs text-muted">
-        Données de démonstration — les vrais chiffres s'afficheront une fois les sources branchées.
+        {data.liveSources.length > 0
+          ? `Données en direct · ${data.liveSources.map((s) => PROVIDER_LABEL[s] ?? s).join(", ")}`
+          : "Données de démonstration — les vrais chiffres s'afficheront une fois les sources branchées."}
       </p>
 
       <ReportFooter

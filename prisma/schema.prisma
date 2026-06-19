@@ -15,6 +15,7 @@ model User {
   name         String?
   passwordHash String
   role         String   @default("MEMBER") // ADMIN | MEMBER
+  mustChangePassword Boolean @default(false) // force a password change on first login
   createdAt    DateTime @default(now())
   agencyName   String?
   agencyLogo   String?

@@ -8,18 +8,25 @@ import TableCard from "@/components/widgets/TableCard";
 import ContentBlock from "@/components/widgets/ContentBlock";
 import IllustrationBlock from "@/components/widgets/IllustrationBlock";
 import IconBlock from "@/components/widgets/IconBlock";
-import { DATASETS, KPI_METRICS } from "@/lib/metrics-catalog";
+import type { ReportData } from "@/lib/report-data";
 import type { SourceKey } from "@/lib/sources";
 
-// Maps a stored Widget (type + config) to the right widget component + data.
-export default function WidgetRenderer({ widget }: { widget: Widget }) {
+// Maps a stored Widget (type + config) to the right widget component, reading
+// values from the per-client data bundle (live where connected, mock otherwise).
+export default function WidgetRenderer({
+  widget,
+  data,
+}: {
+  widget: Widget;
+  data: ReportData;
+}) {
   const cfg = (widget.config ?? {}) as Record<string, string>;
   const source = (widget.sourceKey ?? undefined) as SourceKey | undefined;
   const subtitle = cfg.subtitle;
 
   switch (widget.type) {
     case "kpi": {
-      const m = KPI_METRICS[cfg.metric] ?? KPI_METRICS.sessions;
+      const m = data.kpis[cfg.metric] ?? data.kpis.sessions;
       return (
         <KpiCard
           label={m.label}
@@ -32,7 +39,7 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
       );
     }
     case "line": {
-      const d = DATASETS.traffic;
+      const d = data.datasets.traffic;
       return (
         <WidgetCard title={widget.title ?? "Trafic web"} subtitle={subtitle} source={source}>
           <LineChartCard labels={d.labels} sessions={d.sessions} users={d.users} />
@@ -43,7 +50,7 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
       return (
         <WidgetCard title={widget.title ?? "Canaux"} subtitle={subtitle} source={source}>
           <DonutChartCard
-            data={DATASETS.channels}
+            data={data.datasets.channels}
             centerValue={cfg.centerValue ?? ""}
             centerLabel={cfg.centerLabel ?? ""}
           />
@@ -52,13 +59,13 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
     case "bar":
       return (
         <WidgetCard title={widget.title ?? "Engagement par réseau"} subtitle={subtitle} source={source}>
-          <BarChartCard data={DATASETS.networks} />
+          <BarChartCard data={data.datasets.networks} />
         </WidgetCard>
       );
     case "table":
       return (
         <WidgetCard title={widget.title ?? "Pages les plus vues"} subtitle={subtitle} source={source}>
-          <TableCard rows={DATASETS.topPages} />
+          <TableCard rows={data.datasets.topPages} />
         </WidgetCard>
       );
     case "content":
