@@ -1,7 +1,9 @@
 # --- build stage ---
-FROM node:22-alpine AS build
+# Debian-based (glibc), not alpine/musl: avoids npm ci failures on native deps
+# (@tailwindcss/oxide, @next/swc, prisma engines).
+FROM node:22-slim AS build
 WORKDIR /app
-RUN apk add --no-cache openssl libc6-compat
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 # Placeholder env so module-level init (Prisma client, Auth) doesn't fail during
 # `next build`. Real values are injected at runtime via the compose environment.
 ENV DATABASE_URL="file:/tmp/build.db"
@@ -15,9 +17,9 @@ RUN npx prisma generate
 RUN npm run build
 
 # --- runtime stage ---
-FROM node:22-alpine AS runner
+FROM node:22-slim AS runner
 WORKDIR /app
-RUN apk add --no-cache openssl
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 # Copy the whole app (incl. node_modules) so the Prisma CLI + tsx are available
