@@ -10,7 +10,10 @@ volumes:
 
 services:
   app:
-    build: .
+    # Image built + published by GitHub Actions (.github/workflows/docker.yml).
+    # Hostinger pulls this like any other image (it does not build on the server).
+    image: ghcr.io/nicogit1976/mydashboard:latest
+    pull_policy: always
     container_name: mydashboard
     restart: unless-stopped
     networks:
