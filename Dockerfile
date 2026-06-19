@@ -1,7 +1,13 @@
 # --- build stage ---
 FROM node:22-alpine AS build
 WORKDIR /app
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl libc6-compat
+# Placeholder env so module-level init (Prisma client, Auth) doesn't fail during
+# `next build`. Real values are injected at runtime via the compose environment.
+ENV DATABASE_URL="file:/tmp/build.db"
+ENV AUTH_SECRET="build-placeholder-secret"
+ENV ENCRYPTION_KEY="0000000000000000000000000000000000000000000000000000000000000000"
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
