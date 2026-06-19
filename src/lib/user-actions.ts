@@ -1,0 +1,64 @@
+"use server";
+
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
+import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+import { db } from "@/lib/db";
+
+export type PasswordState = { ok: boolean; message: string } | null;
+
+export async function changePassword(
+  _prev: PasswordState,
+  formData: FormData,
+): Promise<PasswordState> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, message: "Non authentifié." };
+
+  const current = String(formData.get("current") ?? "");
+  const next = String(formData.get("next") ?? "");
+  if (next.length < 6)
+    return { ok: false, message: "Le nouveau mot de passe doit faire au moins 6 caractères." };
+
+  const user = await db.user.findUnique({ where: { id: session.user.id } });
+  if (!user) return { ok: false, message: "Utilisateur introuvable." };
+
+  const ok = await bcrypt.compare(current, user.passwordHash);
+  if (!ok) return { ok: false, message: "Mot de passe actuel incorrect." };
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(next, 10) },
+  });
+  return { ok: true, message: "Mot de passe mis à jour ✅" };
+}
+
+async function saveLogo(file: File) {
+  const ext = (file.name.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const dir = path.join(process.cwd(), "public", "uploads");
+  await mkdir(dir, { recursive: true });
+  const fileName = `${randomUUID()}.${ext}`;
+  await writeFile(path.join(dir, fileName), Buffer.from(await file.arrayBuffer()));
+  return `/uploads/${fileName}`;
+}
+
+// Agency / white-label branding shown in the report footer (signature).
+export async function updateAgency(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+
+  const agencyName = String(formData.get("agencyName") ?? "").trim() || null;
+  const footerNote = String(formData.get("footerNote") ?? "").trim() || null;
+
+  let agencyLogo: string | undefined;
+  const logo = formData.get("agencyLogo");
+  if (logo instanceof File && logo.size > 0) agencyLogo = await saveLogo(logo);
+
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { agencyName, footerNote, ...(agencyLogo ? { agencyLogo } : {}) },
+  });
+  revalidatePath("/settings");
+}

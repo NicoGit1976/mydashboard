@@ -1,0 +1,40 @@
+# Deploys MyDashboard behind the VPS's existing Traefik (external "edge" network,
+# Let's Encrypt "letsencrypt" resolver) at tools.d-analytica.cloud.
+networks:
+  edge:
+    external: true
+
+volumes:
+  mydashboard_data:
+  mydashboard_uploads:
+
+services:
+  app:
+    build: .
+    container_name: mydashboard
+    restart: unless-stopped
+    networks:
+      - edge
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/prod.db
+      - AUTH_TRUST_HOST=true
+      - AUTH_URL=https://tools.d-analytica.cloud
+      - APP_URL=https://tools.d-analytica.cloud
+      - AUTH_SECRET=${AUTH_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SEED_EMAIL=${SEED_EMAIL}
+      - SEED_PASSWORD=${SEED_PASSWORD}
+      - SEED_NAME=${SEED_NAME}
+    volumes:
+      - mydashboard_data:/app/data
+      - mydashboard_uploads:/app/public/uploads
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - "traefik.http.routers.mydashboard.rule=Host(`tools.d-analytica.cloud`)"
+      - traefik.http.routers.mydashboard.entrypoints=websecure
+      - traefik.http.routers.mydashboard.tls=true
+      - traefik.http.routers.mydashboard.tls.certresolver=letsencrypt
+      - traefik.http.services.mydashboard.loadbalancer.server.port=3000

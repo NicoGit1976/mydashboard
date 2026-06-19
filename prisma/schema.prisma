@@ -1,0 +1,91 @@
+// MyDashboard data model. Multi-tenant by owner: a User sees only the Clients
+// they own (cloisonné). Local dev = SQLite; prod = Postgres (flip provider).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         String   @default("MEMBER") // ADMIN | MEMBER
+  createdAt    DateTime @default(now())
+  agencyName   String?
+  agencyLogo   String?
+  footerNote   String?
+  clients      Client[]
+  connections  Connection[]
+}
+
+model Client {
+  id         String   @id @default(cuid())
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String
+  sector     String?
+  brandColor String   @default("#4f46e5")
+  logoUrl    String?
+  createdAt  DateTime @default(now())
+  reports    Report[]
+  sources    ClientSource[]
+}
+
+model Report {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title        String   @default("Rapport de performance")
+  periodLabel  String?
+  compareLabel String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  widgets      Widget[]
+}
+
+model Widget {
+  id        String  @id @default(cuid())
+  reportId  String
+  report    Report  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  type      String // kpi | line | donut | bar | table | content | illustration
+  title     String?
+  sourceKey String? // matomo | ga4 | facebook | instagram | linkedin | gmb | manual
+  span      Int     @default(12) // grid columns 1..12
+  position  Int     @default(0)
+  config    Json? // widget settings (metric ids, labels, html, etc.)
+}
+
+model Connection {
+  id           String    @id @default(cuid())
+  ownerId      String
+  owner        User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  provider     String // matomo | ga4 | meta | gmb | linkedin
+  authType     String // oauth | token
+  status       String    @default("connected") // connected | error
+  accountLabel String?
+  accessToken  String? // encrypted at rest
+  refreshToken String? // encrypted at rest
+  expiresAt    DateTime?
+  meta         Json? // non-secret provider config (e.g. matomo url)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([ownerId, provider])
+}
+
+model ClientSource {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  provider   String // matomo | ga4 | meta | gmb | linkedin
+  externalId String // GA4 property id, FB page id, Matomo site id, etc.
+  label      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([clientId, provider])
+}

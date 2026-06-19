@@ -1,26 +1,98 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ----------------------------------------------------------------------------
+   NSG Reporting — Design tokens (Tailwind v4, CSS-first @theme).
+   Each --color-* / --radius-* / --shadow-* becomes a utility:
+   --color-brand -> bg-brand / text-brand / border-brand, etc.
+---------------------------------------------------------------------------- */
+@theme {
+  --color-bg: #f4f5fb;
+  --color-surface: #ffffff;
+  --color-border: #e9ebf3;
+  --color-ink: #1b2030;
+  --color-ink-soft: #565d76;
+  --color-muted: #8b91a7;
+
+  --color-brand: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-soft: #ececfe;
+  --color-accent: #06b6d4;
+
+  --color-positive: #16a34a;
+  --color-positive-soft: #e7f6ec;
+  --color-negative: #e11d48;
+  --color-negative-soft: #fdeaef;
+
+  --radius-card: 16px;
+  --shadow-soft: 0 1px 2px rgba(16, 24, 64, 0.04), 0 10px 30px rgba(16, 24, 64, 0.06);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Free-content widget: styles the raw HTML a user injects into a report. */
+.prose-block {
+  line-height: 1.65;
+  color: var(--color-ink-soft);
+  font-size: 14px;
+}
+.prose-block h1,
+.prose-block h2,
+.prose-block h3 {
+  color: var(--color-ink);
+  font-weight: 650;
+  line-height: 1.25;
+  margin: 0.2em 0 0.45em;
+}
+.prose-block h2 {
+  font-size: 1.15rem;
+}
+.prose-block h3 {
+  font-size: 1rem;
+}
+.prose-block p {
+  margin: 0.5em 0;
+}
+.prose-block ul {
+  list-style: disc;
+  padding-left: 1.2em;
+  margin: 0.5em 0;
+}
+.prose-block li {
+  margin: 0.2em 0;
+}
+.prose-block a {
+  color: var(--color-brand);
+  text-decoration: underline;
+}
+.prose-block strong {
+  color: var(--color-ink);
+  font-weight: 650;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cdd2e3 transparent;
+}
+
+/* PDF / print groundwork (Phase 2 will render the report through this). */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff;
+  }
 }

@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database (local dev SQLite — never committed; prod uses Postgres)
+/prisma/dev.db
+/prisma/dev.db-journal
+*.db
+*.db-journal
+
+# uploaded client logos (runtime user content)
+/public/uploads/
