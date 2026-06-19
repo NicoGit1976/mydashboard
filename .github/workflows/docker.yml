@@ -26,6 +26,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Diagnose npm ci in node:22-slim
+        run: |
+          docker run --rm -v "${{ github.workspace }}":/app -w /app node:22-slim bash -lc 'apt-get update >/dev/null 2>&1 && apt-get install -y --no-install-recommends openssl ca-certificates >/dev/null 2>&1; rm -rf node_modules; npm ci 2>&1 | tail -n 60' > diag.txt 2>&1 || true
+          echo "===DIAG==="; cat diag.txt
+          echo "::error::DIAG $(tail -c 1500 diag.txt | tr '\n' '~' | tr '"' ' ')"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
