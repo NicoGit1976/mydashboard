@@ -85,8 +85,7 @@ export default function LoginPage() {
           </button>
 
           <p className="mt-4 text-center text-[11px] leading-relaxed text-muted">
-            Démo : <span className="font-medium text-ink-soft">nicolas@d-analytica.cloud</span>{" "}
-            / <span className="font-medium text-ink-soft">mydashboard</span>
+            Utilise les identifiants qui t&apos;ont été communiqués.
           </p>
         </form>
       </div>

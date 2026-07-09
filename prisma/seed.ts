@@ -4,16 +4,26 @@ import bcrypt from "bcryptjs";
 const db = new PrismaClient();
 
 async function main() {
-  // Admin login is driven by env (set securely at deploy); falls back to the
-  // local dev defaults.
-  const email = (process.env.SEED_EMAIL || "nicolas@d-analytica.cloud").toLowerCase();
-  const password = process.env.SEED_PASSWORD || "mydashboard";
-  const name = process.env.SEED_NAME || "Nicolas";
+  // Admin login is driven by env (set securely at deploy); falls back to local
+  // dev defaults. Trim: deploy env values can arrive with stray whitespace/CR,
+  // which would silently break the password.
+  const email = (process.env.SEED_EMAIL || "nicolas@d-analytica.cloud").toLowerCase().trim();
+  const password = (process.env.SEED_PASSWORD || "mydashboard").trim();
+  const name = (process.env.SEED_NAME || "Nicolas").trim();
   const passwordHash = await bcrypt.hash(password, 10);
+
+  const existing = await db.user.findUnique({ where: { email } });
+
+  // Reset the temp password on every (re)deploy AS LONG AS the admin hasn't
+  // completed first-login yet (mustChangePassword still true). Once they set
+  // their own password, we never touch it again.
+  const resetTemp = !existing || existing.mustChangePassword;
 
   const admin = await db.user.upsert({
     where: { email },
-    update: { name, role: "ADMIN" }, // never reset the password (or the flag) on re-seed
+    update: resetTemp
+      ? { name, role: "ADMIN", passwordHash, mustChangePassword: true }
+      : { name, role: "ADMIN" },
     create: { email, name, passwordHash, role: "ADMIN", mustChangePassword: true },
   });
 
@@ -27,7 +37,11 @@ async function main() {
     });
   }
 
-  console.log("Seed OK —", email, "· clients:", await db.client.count());
+  console.log(
+    `Seed OK — ${email} · SEED_PASSWORD=${
+      process.env.SEED_PASSWORD ? "len " + process.env.SEED_PASSWORD.trim().length : "MISSING(fallback)"
+    } · reset-temp=${resetTemp} · clients: ${await db.client.count()}`,
+  );
 }
 
 main()
