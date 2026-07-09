@@ -19,10 +19,14 @@ async function main() {
 
   const existing = await db.user.findUnique({ where: { email } });
 
-  // Reset the temp password on every (re)deploy AS LONG AS the admin hasn't
-  // completed first-login yet (mustChangePassword still true). Once they set
-  // their own password, we never touch it again.
-  const resetTemp = !existing || existing.mustChangePassword;
+  // Reset the temp password when the admin hasn't completed first-login yet
+  // (mustChangePassword still true), OR when SEED_RESET is explicitly set — used
+  // to recover a locked-out admin. Once they set their own password (and
+  // SEED_RESET is unset), we never touch it again.
+  const forceReset = ["1", "true", "yes"].includes(
+    (process.env.SEED_RESET || "").trim().toLowerCase(),
+  );
+  const resetTemp = !existing || existing.mustChangePassword || forceReset;
 
   const admin = await db.user.upsert({
     where: { email },
@@ -43,7 +47,7 @@ async function main() {
   }
 
   console.log(
-    `Seed OK — ${email} · SEED_PASSWORD raw=${JSON.stringify(rawPassword)} → cleaned="${password}" · reset-temp=${resetTemp} · clients: ${await db.client.count()}`,
+    `Seed OK — ${email} · cleaned-pw-len=${password.length} · existing-mustChange=${existing?.mustChangePassword ?? "n/a"} · forceReset=${forceReset} · reset-temp=${resetTemp} · clients: ${await db.client.count()}`,
   );
 }
 
