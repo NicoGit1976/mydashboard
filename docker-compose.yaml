@@ -30,6 +30,7 @@ services:
       - SEED_EMAIL=${SEED_EMAIL}
       - SEED_PASSWORD=${SEED_PASSWORD}
       - SEED_NAME=${SEED_NAME}
+      - SEED_RESET=${SEED_RESET}
     volumes:
       - mydashboard_data:/app/data
       - mydashboard_uploads:/app/public/uploads
