@@ -7,9 +7,14 @@ async function main() {
   // Admin login is driven by env (set securely at deploy); falls back to local
   // dev defaults. Trim: deploy env values can arrive with stray whitespace/CR,
   // which would silently break the password.
-  const email = (process.env.SEED_EMAIL || "nicolas@d-analytica.cloud").toLowerCase().trim();
-  const password = (process.env.SEED_PASSWORD || "mydashboard").trim();
-  const name = (process.env.SEED_NAME || "Nicolas").trim();
+  const email = (process.env.SEED_EMAIL || "nicolas@d-analytica.cloud")
+    .toLowerCase()
+    .replace(/[^\x21-\x7e]/g, "");
+  // Deploy env transport can inject stray/invisible characters into values,
+  // which silently breaks bcrypt. Keep only printable ASCII.
+  const rawPassword = process.env.SEED_PASSWORD ?? "";
+  const password = rawPassword.replace(/[^\x21-\x7e]/g, "") || "mydashboard";
+  const name = (process.env.SEED_NAME || "Nicolas").replace(/[^\x20-\x7e]/g, "").trim();
   const passwordHash = await bcrypt.hash(password, 10);
 
   const existing = await db.user.findUnique({ where: { email } });
@@ -38,9 +43,7 @@ async function main() {
   }
 
   console.log(
-    `Seed OK — ${email} · SEED_PASSWORD=${
-      process.env.SEED_PASSWORD ? "len " + process.env.SEED_PASSWORD.trim().length : "MISSING(fallback)"
-    } · reset-temp=${resetTemp} · clients: ${await db.client.count()}`,
+    `Seed OK — ${email} · SEED_PASSWORD raw=${JSON.stringify(rawPassword)} → cleaned="${password}" · reset-temp=${resetTemp} · clients: ${await db.client.count()}`,
   );
 }
 
