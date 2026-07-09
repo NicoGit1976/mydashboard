@@ -97,8 +97,10 @@ export async function fetchMatomo(
   const kpis: ProviderData["kpis"] = {};
   const metric = (key: string, curName: string, scaleToInt = true) => {
     const c = num(cur?.[curName]);
-    const p = num(prev?.[curName]);
-    kpis[key] = { value: scaleToInt ? Math.round(c) : c, delta: prev ? pct(c, p) : 0 };
+    const val = scaleToInt ? Math.round(c) : c;
+    // Omit delta when the previous period is unavailable — an honest "no trend"
+    // instead of a fabricated 0 %.
+    kpis[key] = prev ? { value: val, delta: pct(c, num(prev[curName])) } : { value: val };
   };
   metric("sessions", "nb_visits");
   metric("pageviews", "nb_pageviews");
@@ -133,8 +135,13 @@ export async function fetchMatomo(
       ["Réseaux sociaux", "visitorsFromSocialNetworks"],
       ["Campagnes", "visitorsFromCampaigns"],
     ];
+    // Matomo's Referrers.get returns metrics prefixed with `Referrers_`; fall
+    // back to the bare key across API versions.
     const out = mapping
-      .map(([name, key]) => ({ name, value: num(referrers[key]) }))
+      .map(([name, key]) => ({
+        name,
+        value: num(referrers[`Referrers_${key}`] ?? referrers[key]),
+      }))
       .filter((c) => c.value > 0)
       .sort((a, b) => b.value - a.value);
     if (out.length) channels = out;

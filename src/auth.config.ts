@@ -10,7 +10,9 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       // Public share links: read-only report pages for end clients, no login.
-      if (nextUrl.pathname.startsWith("/share")) return true;
+      // Exact/segment match so a future route like /shared isn't world-readable.
+      const p = nextUrl.pathname;
+      if (p === "/share" || p.startsWith("/share/")) return true;
       const onLogin = nextUrl.pathname === "/login";
       if (onLogin) {
         return isLoggedIn

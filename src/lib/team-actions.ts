@@ -11,11 +11,15 @@ export type TeamState =
   | { ok: false; message: string }
   | null;
 
-// All team actions are ADMIN-only (role lives in the JWT session).
+// All team actions are ADMIN-only. Re-check the role from the DB (not just the
+// JWT), so a demoted or deleted admin loses power immediately instead of keeping
+// it for the whole ~30-day token lifetime.
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user?.id || session.user.role !== "ADMIN") return null;
-  return session.user;
+  if (!session?.user?.id) return null;
+  const user = await db.user.findUnique({ where: { id: session.user.id } });
+  if (!user || user.role !== "ADMIN") return null;
+  return user;
 }
 
 export async function createUser(

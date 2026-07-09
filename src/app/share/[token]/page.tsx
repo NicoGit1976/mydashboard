@@ -39,7 +39,8 @@ export default async function SharedReportPage({
 
   const report = link.report;
   const client = report.client;
-  const data = await getReportData(client);
+  // readOnly: public viewers must never mutate the owner's connection state.
+  const data = await getReportData(client, true);
 
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-6">

@@ -73,7 +73,8 @@ function withTimeout<T>(p: Promise<T>, ms = 10_000): Promise<T> {
 // Builds the data bundle for a client's report: starts from the mock catalog,
 // then overrides with live data for every connected + attributed source. Any
 // provider error keeps that source's mock values, so the report never breaks.
-export async function getReportData(client: Client): Promise<ReportData> {
+// readOnly = true for public /share pages: no owner-state writes, no refreshes.
+export async function getReportData(client: Client, readOnly = false): Promise<ReportData> {
   const kpis = structuredClone(KPI_METRICS);
   const datasets = structuredClone(DATASETS);
   const liveSources: string[] = [];
@@ -85,7 +86,7 @@ export async function getReportData(client: Client): Promise<ReportData> {
   await Promise.all(
     sources.map(async (s) => {
       try {
-        const t = await getValidToken(client.ownerId, s.provider);
+        const t = await getValidToken(client.ownerId, s.provider, readOnly);
         if (!t) return;
 
         const key = `${client.ownerId}:${s.provider}:${s.externalId}`;

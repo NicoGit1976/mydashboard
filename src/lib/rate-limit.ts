@@ -5,11 +5,7 @@ type Entry = { count: number; first: number };
 const buckets = new Map<string, Entry>();
 const WINDOW_MS = 15 * 60_000;
 const MAX_FAILURES = 5;
-
-function gc(now: number) {
-  if (buckets.size < 1000) return;
-  for (const [k, e] of buckets) if (now - e.first > WINDOW_MS) buckets.delete(k);
-}
+const MAX_ENTRIES = 5000; // hard cap so a flood of distinct keys can't grow unbounded
 
 export function isBlocked(key: string): boolean {
   const e = buckets.get(key);
@@ -23,10 +19,19 @@ export function isBlocked(key: string): boolean {
 
 export function recordFailure(key: string) {
   const now = Date.now();
-  gc(now);
   const e = buckets.get(key);
-  if (!e || now - e.first > WINDOW_MS) buckets.set(key, { count: 1, first: now });
-  else e.count++;
+  if (e && now - e.first <= WINDOW_MS) {
+    e.count++;
+    return;
+  }
+  // New window for this key. Evict the oldest inserted entry when at capacity
+  // (Map preserves insertion order → first key is the oldest) — bounded memory
+  // and O(1), regardless of window expiry.
+  if (buckets.size >= MAX_ENTRIES) {
+    const oldest = buckets.keys().next().value;
+    if (oldest !== undefined) buckets.delete(oldest);
+  }
+  buckets.set(key, { count: 1, first: now });
 }
 
 export function clearFailures(key: string) {

@@ -11,6 +11,7 @@ import IconBlock from "@/components/widgets/IconBlock";
 import type { ReportData } from "@/lib/report-data";
 import type { SourceKey } from "@/lib/sources";
 import { fmtCompact } from "@/lib/format";
+import { sanitizeReportHtml } from "@/lib/sanitize";
 
 // Maps a stored Widget (type + config) to the right widget component, reading
 // values from the per-client data bundle (live where connected, mock otherwise).
@@ -79,16 +80,18 @@ export default function WidgetRenderer({
         </WidgetCard>
       );
     case "content":
+      // Sanitize at render too (defense-in-depth): protects rows written before
+      // write-sanitization existed, and the public /share surface.
       return (
         <WidgetCard title={widget.title ?? "Bloc de contenu"} subtitle={subtitle} source={source}>
-          <ContentBlock html={cfg.html ?? ""} />
+          <ContentBlock html={sanitizeReportHtml(cfg.html ?? "")} />
         </WidgetCard>
       );
     case "ai":
       return (
         <WidgetCard title={widget.title ?? "Résumé IA"} subtitle={subtitle}>
           {cfg.html ? (
-            <div className="prose-block" dangerouslySetInnerHTML={{ __html: cfg.html }} />
+            <div className="prose-block" dangerouslySetInnerHTML={{ __html: sanitizeReportHtml(cfg.html) }} />
           ) : (
             <p className="text-sm text-muted">
               Choisis un ton et clique « Générer le résumé » dans ⚙ pour produire la synthèse.

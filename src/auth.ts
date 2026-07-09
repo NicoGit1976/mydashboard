@@ -10,14 +10,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      authorize: async (creds) => {
+      authorize: async (creds, request) => {
         const email = String(creds?.email ?? "").toLowerCase().trim();
         const password = String(creds?.password ?? "");
         if (!email || !password) return null;
 
-        // Brute-force guard: after 5 failures in 15 min the account locks for
-        // the window — even a correct password is refused (generic error).
-        const rlKey = `login:${email}`;
+        // Brute-force guard: after 5 failures in 15 min the (email, IP) pair
+        // locks for the window. Keying on IP too means an attacker who knows a
+        // victim's email can't lock the victim out from the victim's own IP.
+        const ip =
+          request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+          request?.headers?.get?.("x-real-ip") ||
+          "unknown";
+        const rlKey = `login:${email}:${ip}`;
         if (isBlocked(rlKey)) return null;
 
         const user = await db.user.findUnique({ where: { email } });

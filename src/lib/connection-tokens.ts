@@ -70,6 +70,7 @@ async function refreshToken(
 export async function getValidToken(
   ownerId: string,
   provider: string,
+  readOnly = false,
 ): Promise<LiveToken | null> {
   const conn = await db.connection.findUnique({
     where: { ownerId_provider: { ownerId, provider } },
@@ -84,9 +85,15 @@ export async function getValidToken(
   }
   const meta = (conn.meta ?? {}) as Record<string, unknown>;
 
-  const expiresSoon = conn.expiresAt
-    ? conn.expiresAt.getTime() < Date.now() + 60_000
-    : false;
+  // Read-only path (public /share pages): never refresh or mutate the owner's
+  // connection state and never spend their API quota — an unauthenticated viewer
+  // must not be able to flip status or trigger refreshes. Serve the current
+  // token best-effort (a dead token just yields cached/mock data downstream).
+  if (readOnly) return { token, meta };
+
+  const now = Date.now();
+  const nowExpired = conn.expiresAt ? conn.expiresAt.getTime() < now : false;
+  const expiresSoon = conn.expiresAt ? conn.expiresAt.getTime() < now + 60_000 : false;
 
   if (expiresSoon) {
     let refreshed: Refreshed | null = null;
@@ -108,11 +115,13 @@ export async function getValidToken(
           status: "connected",
         },
       });
-    } else {
-      // Expired and un-refreshable → surface it; do NOT serve the dead token.
+    } else if (nowExpired) {
+      // Actually past expiry and un-refreshable → surface it; don't serve dead.
       await db.connection.update({ where: { id: conn.id }, data: { status: "error" } });
       return null;
     }
+    // Not-yet-expired + transient refresh failure (5xx/429/network): keep the
+    // still-valid current token rather than nuking a working connection.
   }
 
   return { token, meta };
