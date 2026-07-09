@@ -35,6 +35,7 @@ export async function GET(
   res.cookies.set(`oauth_state_${provider}`, state, {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     maxAge: 600,
     path: "/",
   });

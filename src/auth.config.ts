@@ -9,6 +9,8 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      // Public share links: read-only report pages for end clients, no login.
+      if (nextUrl.pathname.startsWith("/share")) return true;
       const onLogin = nextUrl.pathname === "/login";
       if (onLogin) {
         return isLoggedIn
@@ -26,8 +28,8 @@ export const authConfig = {
     },
     session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id ?? "";
-        session.user.role = token.role ?? "MEMBER";
+        session.user.id = (token.id as string | undefined) ?? "";
+        session.user.role = (token.role as string | undefined) ?? "MEMBER";
       }
       return session;
     },

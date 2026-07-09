@@ -1,13 +1,11 @@
 "use server";
 
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { saveImageUpload } from "@/lib/uploads";
 
 export type PasswordState = { ok: boolean; message: string } | null;
 
@@ -20,8 +18,8 @@ export async function changePassword(
 
   const current = String(formData.get("current") ?? "");
   const next = String(formData.get("next") ?? "");
-  if (next.length < 6)
-    return { ok: false, message: "Le nouveau mot de passe doit faire au moins 6 caractères." };
+  if (next.length < 8)
+    return { ok: false, message: "Le nouveau mot de passe doit faire au moins 8 caractères." };
 
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (!user) return { ok: false, message: "Utilisateur introuvable." };
@@ -45,6 +43,12 @@ export async function completeOnboardingPassword(
   const session = await auth();
   if (!session?.user?.id) return { ok: false, message: "Non authentifié." };
 
+  // Only reachable while the account is genuinely mid-first-login. Otherwise a
+  // borrowed/hijacked session could set a new password WITHOUT the current one
+  // (account takeover) — established users must go through changePassword.
+  const user = await db.user.findUnique({ where: { id: session.user.id } });
+  if (!user?.mustChangePassword) redirect("/overview");
+
   const next = String(formData.get("next") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
   if (next.length < 8)
@@ -59,15 +63,6 @@ export async function completeOnboardingPassword(
   redirect("/overview");
 }
 
-async function saveLogo(file: File) {
-  const ext = (file.name.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const dir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(dir, { recursive: true });
-  const fileName = `${randomUUID()}.${ext}`;
-  await writeFile(path.join(dir, fileName), Buffer.from(await file.arrayBuffer()));
-  return `/uploads/${fileName}`;
-}
-
 // Agency / white-label branding shown in the report footer (signature).
 export async function updateAgency(formData: FormData) {
   const session = await auth();
@@ -78,7 +73,8 @@ export async function updateAgency(formData: FormData) {
 
   let agencyLogo: string | undefined;
   const logo = formData.get("agencyLogo");
-  if (logo instanceof File && logo.size > 0) agencyLogo = await saveLogo(logo);
+  if (logo instanceof File && logo.size > 0)
+    agencyLogo = (await saveImageUpload(logo)) ?? undefined;
 
   await db.user.update({
     where: { id: session.user.id },

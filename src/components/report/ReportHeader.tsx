@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Download, Pencil, Settings, Share2 } from "lucide-react";
+import { Check, Download, Pencil, Settings } from "lucide-react";
 import { initials } from "@/lib/initials";
+import ShareButton from "@/components/report/ShareButton";
 
 type Props = {
   client: {
@@ -16,6 +17,8 @@ type Props = {
   editMode: boolean;
   toggleHref: string;
   settingsHref: string;
+  reportId: string;
+  shareToken: string | null;
 };
 
 export default function ReportHeader({
@@ -25,6 +28,8 @@ export default function ReportHeader({
   editMode,
   toggleHref,
   settingsHref,
+  reportId,
+  shareToken,
 }: Props) {
   return (
     <div
@@ -88,9 +93,7 @@ export default function ReportHeader({
             >
               <Pencil size={16} /> Modifier
             </Link>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-bg">
-              <Share2 size={16} /> Partager
-            </button>
+            <ShareButton reportId={reportId} initialToken={shareToken} />
             <button
               onClick={() => window.print()}
               className="inline-flex items-center gap-2 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"

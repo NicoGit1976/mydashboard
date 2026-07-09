@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "MyDashboard — Reporting social & web",
   description:
     "Rapports social & web multi-sources (Matomo, GA4, Meta, LinkedIn, GMB), prêts à exporter en PDF.",
+  robots: { index: false, follow: false }, // private tool — never indexed
 };
 
 export default function RootLayout({

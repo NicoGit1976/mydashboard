@@ -6,6 +6,9 @@ import { DEFAULT_REPORT_LAYOUT, WIDGET_BLUEPRINTS } from "@/lib/metrics-catalog"
 export async function getOrCreateReport(clientId: string) {
   const existing = await db.report.findFirst({
     where: { clientId },
+    // Deterministic: always return the oldest report for a client, so if a
+    // render race ever created a duplicate, everyone lands on the same one.
+    orderBy: { createdAt: "asc" },
     include: { widgets: { orderBy: { position: "asc" } } },
   });
   if (existing) return existing;
@@ -14,8 +17,9 @@ export async function getOrCreateReport(clientId: string) {
     data: {
       clientId,
       title: "Rapport de performance",
-      periodLabel: "1 – 31 mai 2026",
-      compareLabel: "vs. avril 2026",
+      // Matches what the connectors actually fetch (last 28 full days).
+      periodLabel: "28 derniers jours",
+      compareLabel: "vs 28 jours précédents",
       widgets: {
         create: DEFAULT_REPORT_LAYOUT.map((key, i) => {
           const bp = WIDGET_BLUEPRINTS[key];

@@ -58,12 +58,14 @@ export const traffic = {
   users: days.map((d) => Math.round(760 + 230 * Math.sin(d / 3 + 0.6) + d * 11)),
 };
 
+// Absolute session counts (live connectors return absolutes too — the donut
+// computes shares itself; totals match the "sessions" KPI).
 export const channels = [
-  { name: "Organique", value: 42 },
-  { name: "Direct", value: 23 },
-  { name: "Réseaux sociaux", value: 18 },
-  { name: "Référents", value: 11 },
-  { name: "Payant", value: 6 },
+  { name: "Organique", value: 20257 },
+  { name: "Direct", value: 11093 },
+  { name: "Réseaux sociaux", value: 8681 },
+  { name: "Référents", value: 5305 },
+  { name: "Payant", value: 2894 },
 ];
 
 export const networks: { name: string; value: number; source: SourceKey }[] = [

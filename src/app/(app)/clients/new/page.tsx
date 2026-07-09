@@ -1,12 +1,10 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { saveImageUpload } from "@/lib/uploads";
 
 async function createClient(formData: FormData) {
   "use server";
@@ -18,17 +16,10 @@ async function createClient(formData: FormData) {
   const sector = String(formData.get("sector") ?? "").trim() || null;
   const brandColor = String(formData.get("brandColor") ?? "#4f46e5");
 
-  // Logo upload → public/uploads (mount a Docker volume here in prod).
+  // Logo upload → public/uploads (validated: type allowlist + 2 MB cap).
   let logoUrl: string | null = null;
   const logo = formData.get("logo");
-  if (logo instanceof File && logo.size > 0) {
-    const ext = (logo.name.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const dir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(dir, { recursive: true });
-    const fileName = `${randomUUID()}.${ext}`;
-    await writeFile(path.join(dir, fileName), Buffer.from(await logo.arrayBuffer()));
-    logoUrl = `/uploads/${fileName}`;
-  }
+  if (logo instanceof File && logo.size > 0) logoUrl = await saveImageUpload(logo);
 
   const client = await db.client.create({
     data: { ownerId: session.user.id, name, sector, brandColor, logoUrl },

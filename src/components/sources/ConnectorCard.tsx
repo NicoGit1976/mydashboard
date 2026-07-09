@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Plug } from "lucide-react";
+import { Check, Plug, TriangleAlert } from "lucide-react";
 import { disconnectProvider, saveTokenConnection } from "@/lib/connection-actions";
 
 type TokenField = { name: string; label: string; placeholder?: string; type?: string };
@@ -60,9 +60,18 @@ export default function ConnectorCard({
       <div className="mt-auto pt-4">
         {connected ? (
           <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-positive">
-              <Check size={14} /> Connecté
-            </span>
+            {connection!.status === "error" ? (
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-negative"
+                title="Le jeton a expiré ou n'est plus valide — reconnecte la source."
+              >
+                <TriangleAlert size={14} /> À reconnecter
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-positive">
+                <Check size={14} /> Connecté
+              </span>
+            )}
             <form action={disconnect}>
               <button className="rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-bg">
                 Déconnecter

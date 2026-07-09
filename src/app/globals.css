@@ -87,12 +87,28 @@ body {
   scrollbar-color: #cdd2e3 transparent;
 }
 
-/* PDF / print groundwork (Phase 2 will render the report through this). */
+/* PDF export: the report prints through here (browser "Save as PDF"). */
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
   .no-print {
     display: none !important;
   }
   body {
     background: #ffffff;
+  }
+  main {
+    padding: 0 !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow: none !important;
+  }
+  /* Keep each widget card on one page where possible. */
+  .grid > div {
+    break-inside: avoid;
   }
 }

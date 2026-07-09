@@ -4,7 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { DATASETS, KPI_METRICS } from "@/lib/metrics-catalog";
+import { getReportData, type ReportData } from "@/lib/report-data";
+import { sanitizeReportHtml } from "@/lib/sanitize";
 
 const TONE_PROMPTS: Record<string, string> = {
   problems:
@@ -15,43 +16,56 @@ const TONE_PROMPTS: Record<string, string> = {
     "Angle : synthèse FACTUELLE et équilibrée — ne dramatise pas, ne survends pas.",
 };
 
+// Builds the fact sheet from the SAME data bundle the report renders (live
+// values where sources are connected, mock otherwise) — the AI summarizes what
+// the reader actually sees.
 function buildReportFacts(
   client: { name: string; sector: string | null },
   report: { periodLabel: string | null; compareLabel: string | null },
   widgets: { type: string; config: unknown }[],
+  data: ReportData,
 ): string {
   const lines: string[] = [
     `Client : ${client.name}${client.sector ? ` (${client.sector})` : ""}`,
     `Période : ${report.periodLabel ?? "—"} ${report.compareLabel ?? ""}`.trim(),
+    data.liveSources.length
+      ? `Données réelles (sources : ${data.liveSources.join(", ")})`
+      : "Données de démonstration",
   ];
 
   for (const w of widgets) {
     const cfg = (w.config ?? {}) as Record<string, string>;
     if (w.type === "kpi") {
-      const m = KPI_METRICS[cfg.metric];
-      if (m)
-        lines.push(
-          `KPI ${m.label} : ${m.value} (${m.delta >= 0 ? "+" : ""}${m.delta} % vs période précédente)`,
-        );
+      const m = data.kpis[cfg.metric];
+      if (m) {
+        const trend =
+          typeof m.delta === "number"
+            ? ` (${m.delta >= 0 ? "+" : ""}${m.delta} % vs période précédente)`
+            : "";
+        lines.push(`KPI ${m.label} : ${m.value}${trend}`);
+      }
     } else if (w.type === "line" && cfg.dataset === "traffic") {
-      const t = DATASETS.traffic;
+      const t = data.datasets.traffic;
       lines.push(
         `Trafic web (sessions/jour) : de ${t.sessions[0]} à ${t.sessions[t.sessions.length - 1]} sur la période`,
       );
     } else if (w.type === "donut" && cfg.dataset === "channels") {
+      const total = data.datasets.channels.reduce((s, c) => s + c.value, 0) || 1;
       lines.push(
-        "Canaux d'acquisition (% sessions) : " +
-          DATASETS.channels.map((c) => `${c.name} ${c.value} %`).join(", "),
+        "Canaux d'acquisition (sessions) : " +
+          data.datasets.channels
+            .map((c) => `${c.name} ${c.value} (${Math.round((c.value / total) * 100)} %)`)
+            .join(", "),
       );
     } else if (w.type === "bar" && cfg.dataset === "networks") {
       lines.push(
         "Engagement par réseau : " +
-          DATASETS.networks.map((n) => `${n.name} ${n.value}`).join(", "),
+          data.datasets.networks.map((n) => `${n.name} ${n.value}`).join(", "),
       );
     } else if (w.type === "table" && cfg.dataset === "topPages") {
       lines.push(
         "Top pages (vues) : " +
-          DATASETS.topPages.map((p) => `${p.page} ${p.views}`).join(", "),
+          data.datasets.topPages.map((p) => `${p.page} ${p.views}`).join(", "),
       );
     }
   }
@@ -86,7 +100,8 @@ export async function generateSummary(
   });
   if (!report) return { ok: false, error: "Rapport introuvable." };
 
-  const facts = buildReportFacts(report.client, report, report.widgets);
+  const data = await getReportData(report.client);
+  const facts = buildReportFacts(report.client, report, report.widgets, data);
   const toneInstr = TONE_PROMPTS[tone] ?? TONE_PROMPTS.neutral;
 
   try {
@@ -108,11 +123,9 @@ export async function generateSummary(
     const textBlock = msg.content.find(
       (b): b is Anthropic.TextBlock => b.type === "text",
     );
-    let html = (textBlock?.text ?? "")
-      .replace(/```html?/gi, "")
-      .replace(/```/g, "")
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .trim();
+    const html = sanitizeReportHtml(
+      (textBlock?.text ?? "").replace(/```html?/gi, "").replace(/```/g, "").trim(),
+    );
     if (!html) return { ok: false, error: "Réponse vide du modèle." };
 
     const newConfig = {

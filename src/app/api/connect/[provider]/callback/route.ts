@@ -64,7 +64,6 @@ export async function GET(
       }
     }
     const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null;
-    const refreshToken = data.refresh_token ? encrypt(data.refresh_token) : null;
 
     await db.connection.upsert({
       where: { ownerId_provider: { ownerId: session.user.id, provider } },
@@ -72,7 +71,9 @@ export async function GET(
         authType: "oauth",
         status: "connected",
         accessToken: encrypt(accessToken),
-        refreshToken,
+        // Only overwrite the refresh token when the provider returns one — an
+        // absent refresh_token on reconnect must NOT wipe the stored one.
+        ...(data.refresh_token ? { refreshToken: encrypt(data.refresh_token) } : {}),
         expiresAt,
       },
       create: {
@@ -81,7 +82,7 @@ export async function GET(
         authType: "oauth",
         status: "connected",
         accessToken: encrypt(accessToken),
-        refreshToken,
+        refreshToken: data.refresh_token ? encrypt(data.refresh_token) : null,
         expiresAt,
       },
     });

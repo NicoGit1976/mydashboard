@@ -21,7 +21,9 @@ RUN npm run build
 # --- runtime stage ---
 FROM node:22-slim AS runner
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# gosu lets the root entrypoint chown the mounted volumes, then drop to the
+# unprivileged `node` user for the app/prisma/seed processes.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates gosu && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 # Copy the whole app (incl. node_modules) so the Prisma CLI + tsx are available

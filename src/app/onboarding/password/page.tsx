@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { LayoutDashboard } from "lucide-react";
 import { auth } from "@/auth";
+import { db } from "@/lib/db";
 import OnboardingPasswordForm from "@/components/OnboardingPasswordForm";
 
 // Standalone (no app chrome). The (app) layout redirects here while the user's
@@ -8,6 +9,11 @@ import OnboardingPasswordForm from "@/components/OnboardingPasswordForm";
 export default async function OnboardingPasswordPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  // Not mid-first-login → nothing to do here (and the no-current-password form
+  // must not be reachable for established accounts).
+  const user = await db.user.findUnique({ where: { id: session.user.id } });
+  if (!user?.mustChangePassword) redirect("/overview");
 
   return (
     <div className="grid min-h-screen place-items-center px-4">

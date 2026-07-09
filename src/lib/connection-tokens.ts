@@ -1,11 +1,72 @@
 import { db } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { getConnector } from "@/lib/connectors";
+import { exchangeLongLivedToken } from "@/lib/providers/meta";
 
 export type LiveToken = { token: string; meta: Record<string, unknown> };
 
-// Returns a usable access token for (owner, provider), refreshing Google tokens
-// (short-lived, ~1h) when expired. Returns null if not connected / undecryptable.
+type Refreshed = { token: string; refreshToken?: string; expiresIn?: number };
+
+// Provider-specific refresh. Returns null when it can't produce a fresh token.
+async function refreshToken(
+  provider: string,
+  currentToken: string,
+  encRefresh: string | null,
+): Promise<Refreshed | null> {
+  const def = getConnector(provider);
+  const isGoogle = Boolean(def?.oauth?.tokenUrl?.includes("oauth2.googleapis.com"));
+
+  if (isGoogle && encRefresh && def?.oauth) {
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: decrypt(encRefresh),
+        client_id: process.env[def.oauth.clientIdEnv] ?? "",
+        client_secret: process.env[def.oauth.clientSecretEnv] ?? "",
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const d = (await res.json()) as { access_token: string; expires_in?: number };
+    return { token: d.access_token, expiresIn: d.expires_in };
+  }
+
+  if (provider === "meta") {
+    // fb_exchange_token extends a still-valid long-lived token by ~60 days.
+    const extended = await exchangeLongLivedToken(currentToken);
+    return extended ? { token: extended, expiresIn: 60 * 24 * 3600 } : null;
+  }
+
+  if (provider === "linkedin" && encRefresh && def?.oauth) {
+    const res = await fetch(def.oauth.tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: decrypt(encRefresh),
+        client_id: process.env[def.oauth.clientIdEnv] ?? "",
+        client_secret: process.env[def.oauth.clientSecretEnv] ?? "",
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const d = (await res.json()) as {
+      access_token: string;
+      refresh_token?: string;
+      expires_in?: number;
+    };
+    return { token: d.access_token, refreshToken: d.refresh_token, expiresIn: d.expires_in };
+  }
+
+  return null;
+}
+
+// Returns a usable access token for (owner, provider), refreshing it when it is
+// expiring. If a token is expired and cannot be refreshed, the connection is
+// flagged `error` and null is returned — so a dead token is never served as a
+// live "connected" source (which would silently render mock data as real).
 export async function getValidToken(
   ownerId: string,
   provider: string,
@@ -23,46 +84,34 @@ export async function getValidToken(
   }
   const meta = (conn.meta ?? {}) as Record<string, unknown>;
 
-  const def = getConnector(provider);
-  const isGoogle = Boolean(def?.oauth?.tokenUrl?.includes("oauth2.googleapis.com"));
   const expiresSoon = conn.expiresAt
     ? conn.expiresAt.getTime() < Date.now() + 60_000
     : false;
 
-  if (isGoogle && expiresSoon && conn.refreshToken && def?.oauth) {
+  if (expiresSoon) {
+    let refreshed: Refreshed | null = null;
     try {
-      const refreshToken = decrypt(conn.refreshToken);
-      const res = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: refreshToken,
-          client_id: process.env[def.oauth.clientIdEnv] ?? "",
-          client_secret: process.env[def.oauth.clientSecretEnv] ?? "",
-        }),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { access_token: string; expires_in?: number };
-        token = data.access_token;
-        await db.connection.update({
-          where: { id: conn.id },
-          data: {
-            accessToken: encrypt(data.access_token),
-            expiresAt: data.expires_in
-              ? new Date(Date.now() + data.expires_in * 1000)
-              : null,
-            status: "connected",
-          },
-        });
-      } else {
-        await db.connection.update({
-          where: { id: conn.id },
-          data: { status: "error" },
-        });
-      }
+      refreshed = await refreshToken(provider, token, conn.refreshToken);
     } catch {
-      // Use the (possibly stale) token; the data fetch will surface real errors.
+      refreshed = null;
+    }
+    if (refreshed) {
+      token = refreshed.token;
+      await db.connection.update({
+        where: { id: conn.id },
+        data: {
+          accessToken: encrypt(refreshed.token),
+          ...(refreshed.refreshToken ? { refreshToken: encrypt(refreshed.refreshToken) } : {}),
+          expiresAt: refreshed.expiresIn
+            ? new Date(Date.now() + refreshed.expiresIn * 1000)
+            : null,
+          status: "connected",
+        },
+      });
+    } else {
+      // Expired and un-refreshable → surface it; do NOT serve the dead token.
+      await db.connection.update({ where: { id: conn.id }, data: { status: "error" } });
+      return null;
     }
   }
 

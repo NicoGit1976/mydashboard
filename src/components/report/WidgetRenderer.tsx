@@ -10,6 +10,7 @@ import IllustrationBlock from "@/components/widgets/IllustrationBlock";
 import IconBlock from "@/components/widgets/IconBlock";
 import type { ReportData } from "@/lib/report-data";
 import type { SourceKey } from "@/lib/sources";
+import { fmtCompact } from "@/lib/format";
 
 // Maps a stored Widget (type + config) to the right widget component, reading
 // values from the per-client data bundle (live where connected, mock otherwise).
@@ -27,6 +28,9 @@ export default function WidgetRenderer({
   switch (widget.type) {
     case "kpi": {
       const m = data.kpis[cfg.metric] ?? data.kpis.sessions;
+      // "démo" pill only once at least one source is live — so an all-mock
+      // report (nothing connected yet) isn't plastered with badges.
+      const demo = data.liveSources.length > 0 && !data.liveMetrics.includes(cfg.metric);
       return (
         <KpiCard
           label={m.label}
@@ -35,6 +39,8 @@ export default function WidgetRenderer({
           source={m.source}
           spark={m.spark}
           format={m.format}
+          invert={m.invert}
+          demo={demo}
         />
       );
     }
@@ -46,16 +52,20 @@ export default function WidgetRenderer({
         </WidgetCard>
       );
     }
-    case "donut":
+    case "donut": {
+      // Center value = real total of the rendered data (live or mock), so it
+      // can never drift from the chart it sits in.
+      const total = data.datasets.channels.reduce((s, c) => s + c.value, 0);
       return (
         <WidgetCard title={widget.title ?? "Canaux"} subtitle={subtitle} source={source}>
           <DonutChartCard
             data={data.datasets.channels}
-            centerValue={cfg.centerValue ?? ""}
-            centerLabel={cfg.centerLabel ?? ""}
+            centerValue={fmtCompact(total)}
+            centerLabel={cfg.centerLabel || "sessions"}
           />
         </WidgetCard>
       );
+    }
     case "bar":
       return (
         <WidgetCard title={widget.title ?? "Engagement par réseau"} subtitle={subtitle} source={source}>

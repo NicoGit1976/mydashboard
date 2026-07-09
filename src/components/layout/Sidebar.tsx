@@ -2,26 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  FileText,
-  Images,
-  LayoutDashboard,
-  Plug,
-  Settings,
-  Users,
-} from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
+import { navFor } from "@/components/layout/nav";
 
-const nav = [
-  { label: "Vue d'ensemble", icon: LayoutDashboard, href: "/overview" },
-  { label: "Clients", icon: Users, href: "/clients" },
-  { label: "Rapports", icon: FileText, href: "/reports" },
-  { label: "Sources de données", icon: Plug, href: "/sources" },
-  { label: "Bibliothèque", icon: Images, href: "/library" },
-  { label: "Réglages", icon: Settings, href: "/settings" },
-];
-
-export default function Sidebar() {
+export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  const items = navFor(isAdmin);
 
   return (
     <aside className="no-print sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-surface px-3 py-5 md:flex">
@@ -35,9 +21,9 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex flex-col gap-1">
-        {nav.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
-          const active = item.href !== "#" && pathname.startsWith(item.href);
+          const active = pathname.startsWith(item.href);
           return (
             <Link
               key={item.label}

@@ -3,20 +3,12 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getOrCreateReport } from "@/lib/report";
 import { getReportData } from "@/lib/report-data";
+import { SPAN_CLASS } from "@/components/report/span";
 import ReportHeader from "@/components/report/ReportHeader";
 import WidgetRenderer from "@/components/report/WidgetRenderer";
 import WidgetFrame from "@/components/report/WidgetFrame";
 import AddWidgetPanel from "@/components/report/AddWidgetPanel";
 import ReportFooter from "@/components/report/ReportFooter";
-
-// Literal class strings so Tailwind generates them (no dynamic col-span-N).
-const SPAN_CLASS: Record<number, string> = {
-  3: "col-span-12 sm:col-span-6 xl:col-span-3",
-  4: "col-span-12 lg:col-span-4",
-  6: "col-span-12 lg:col-span-6",
-  8: "col-span-12 xl:col-span-8",
-  12: "col-span-12",
-};
 
 const PROVIDER_LABEL: Record<string, string> = {
   ga4: "Google Analytics",
@@ -46,6 +38,7 @@ export default async function ClientReportPage({
   const report = await getOrCreateReport(client.id);
   const widgets = report.widgets;
   const data = await getReportData(client);
+  const shareLink = await db.shareLink.findFirst({ where: { reportId: report.id } });
   const owner = await db.user.findUnique({
     where: { id: session.user.id },
     select: { agencyName: true, agencyLogo: true, footerNote: true },
@@ -65,6 +58,8 @@ export default async function ClientReportPage({
         editMode={editMode}
         toggleHref={editMode ? `/clients/${id}` : `/clients/${id}?edit=1`}
         settingsHref={`/clients/${id}/edit`}
+        reportId={report.id}
+        shareToken={shareLink?.token ?? null}
       />
 
       {editMode && (

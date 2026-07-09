@@ -41,7 +41,7 @@ export default function BarChartCard({
           position: "right",
           color: C.inkSoft,
           fontSize: 11,
-          formatter: (p: { value: number }) => fmtInt(p.value),
+          formatter: (p) => fmtInt(Number((p as { value: number }).value)),
         },
       },
     ],

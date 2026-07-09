@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { WIDGET_BLUEPRINTS } from "@/lib/metrics-catalog";
+import { sanitizeReportHtml } from "@/lib/sanitize";
 
 async function requireUserId() {
   const session = await auth();
@@ -97,11 +98,19 @@ export async function updateWidget(
 ) {
   const userId = await requireUserId();
   if (!(await ownedWidget(widgetId, userId))) return;
+
+  // XSS boundary: widget HTML is rendered raw (incl. on public share pages) —
+  // sanitize on write so the stored value is always safe.
+  const config = data.config ? { ...data.config } : undefined;
+  if (config && typeof config.html === "string") {
+    config.html = sanitizeReportHtml(config.html);
+  }
+
   await db.widget.update({
     where: { id: widgetId },
     data: {
       ...(data.title !== undefined ? { title: data.title } : {}),
-      ...(data.config !== undefined ? { config: data.config as object } : {}),
+      ...(config !== undefined ? { config: config as object } : {}),
     },
   });
   revalidatePath(`/clients/${clientId}`);

@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Check, ChevronDown, LogOut, Plus, Search } from "lucide-react";
+import { Check, ChevronDown, LogOut, Plus } from "lucide-react";
 import { initials } from "@/lib/initials";
+import MobileNav from "@/components/layout/MobileNav";
 
 type ClientLite = { id: string; name: string; brandColor: string };
 
@@ -25,9 +26,11 @@ function Badge({ name, color, small }: { name: string; color: string; small?: bo
 export default function Topbar({
   userName,
   clients = [],
+  isAdmin = false,
 }: {
   userName: string;
   clients?: ClientLite[];
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -37,6 +40,7 @@ export default function Topbar({
   return (
     <header className="no-print sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border bg-bg/80 px-6 py-3 backdrop-blur">
       <div className="relative flex items-center gap-3">
+        <MobileNav isAdmin={isAdmin} />
         <button
           onClick={() => setOpen((v) => !v)}
           className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink"
@@ -84,9 +88,6 @@ export default function Topbar({
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-muted sm:flex">
-          <Search size={15} /> Rechercher…
-        </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           title="Déconnexion"

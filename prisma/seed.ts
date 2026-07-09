@@ -3,18 +3,16 @@ import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
 
+// Trim only: deploy env values can arrive with leading/trailing whitespace or a
+// stray CR, which .trim() removes — while leaving every real character (hyphens,
+// spaces, accents in a chosen passphrase, "d-analytica.cloud") untouched.
+const clean = (s: string) => s.trim();
+
 async function main() {
-  // Admin login is driven by env (set securely at deploy); falls back to local
-  // dev defaults. Trim: deploy env values can arrive with stray whitespace/CR,
-  // which would silently break the password.
-  const email = (process.env.SEED_EMAIL || "nicolas@d-analytica.cloud")
-    .toLowerCase()
-    .replace(/[^\x21-\x7e]/g, "");
-  // Deploy env transport can inject stray/invisible characters into values,
-  // which silently breaks bcrypt. Keep only printable ASCII.
+  const email = clean(process.env.SEED_EMAIL || "nicolas@d-analytica.cloud").toLowerCase();
   const rawPassword = process.env.SEED_PASSWORD ?? "";
-  const password = rawPassword.replace(/[^\x21-\x7e]/g, "") || "mydashboard";
-  const name = (process.env.SEED_NAME || "Nicolas").replace(/[^\x20-\x7e]/g, "").trim();
+  const password = clean(rawPassword) || "mydashboard";
+  const name = clean(process.env.SEED_NAME || "Nicolas");
   const passwordHash = await bcrypt.hash(password, 10);
 
   const existing = await db.user.findUnique({ where: { email } });
@@ -46,8 +44,9 @@ async function main() {
     });
   }
 
+  // Never log the password (nor its length) — just the decision path.
   console.log(
-    `Seed OK — ${email} · cleaned-pw-len=${password.length} · existing-mustChange=${existing?.mustChangePassword ?? "n/a"} · forceReset=${forceReset} · reset-temp=${resetTemp} · clients: ${await db.client.count()}`,
+    `Seed OK — ${email} · existing-mustChange=${existing?.mustChangePassword ?? "n/a"} · forceReset=${forceReset} · reset-temp=${resetTemp} · clients: ${await db.client.count()}`,
   );
 }
 

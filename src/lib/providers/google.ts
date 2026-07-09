@@ -12,6 +12,7 @@ async function gfetch(url: string, token: string, body?: unknown) {
     },
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`GA4 ${res.status}: ${await res.text().catch(() => "")}`);
   return res.json();

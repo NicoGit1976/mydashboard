@@ -31,9 +31,13 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar isAdmin={session?.user?.role === "ADMIN"} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar userName={userName} clients={clients} />
+        <Topbar
+          userName={userName}
+          clients={clients}
+          isAdmin={session?.user?.role === "ADMIN"}
+        />
         <main className="flex-1">{children}</main>
       </div>
     </div>

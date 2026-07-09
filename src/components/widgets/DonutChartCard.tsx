@@ -17,7 +17,7 @@ export default function DonutChartCard({
 }) {
   const option: EChartsOption = {
     color: CHART_PALETTE,
-    tooltip: { trigger: "item", formatter: "{b} : {c} %" },
+    tooltip: { trigger: "item", formatter: "{b} : {c} ({d} %)" },
     legend: {
       bottom: 0,
       left: "center",

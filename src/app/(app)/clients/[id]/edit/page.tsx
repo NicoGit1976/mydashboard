@@ -5,6 +5,8 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { deleteClient, updateClient } from "@/lib/client-actions";
 import { saveClientSource } from "@/lib/client-source-actions";
+import { updateReportMeta } from "@/lib/report-actions";
+import { getOrCreateReport } from "@/lib/report";
 import { listProviderAccounts } from "@/lib/provider-accounts";
 import { getConnector } from "@/lib/connectors";
 import DeleteClientButton from "@/components/DeleteClientButton";
@@ -27,6 +29,8 @@ export default async function EditClientPage({
 
   const update = updateClient.bind(null, id);
   const remove = deleteClient.bind(null, id);
+  const report = await getOrCreateReport(client.id);
+  const updateReport = updateReportMeta.bind(null, report.id, id);
 
   const connections = await db.connection.findMany({
     where: { ownerId: session.user.id },
@@ -120,6 +124,44 @@ export default async function EditClientPage({
         </button>
       </form>
 
+      <form
+        action={updateReport}
+        className="mt-4 rounded-card border border-border/60 bg-surface p-6 shadow-soft"
+      >
+        <p className="text-sm font-semibold text-ink">Rapport</p>
+        <p className="mb-3 mt-0.5 text-xs text-muted">
+          Titre et libellés de période affichés en tête du rapport (et sur le lien partagé).
+        </p>
+        <label className="block text-xs font-medium text-ink-soft">Titre</label>
+        <input name="title" defaultValue={report.title} className={inputCls} />
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium text-ink-soft">Période</label>
+            <input
+              name="periodLabel"
+              defaultValue={report.periodLabel ?? ""}
+              placeholder="28 derniers jours"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-soft">Comparaison</label>
+            <input
+              name="compareLabel"
+              defaultValue={report.compareLabel ?? ""}
+              placeholder="vs 28 jours précédents"
+              className={inputCls}
+            />
+          </div>
+        </div>
+        <button
+          type="submit"
+          className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+        >
+          Enregistrer le rapport
+        </button>
+      </form>
+
       <div className="mt-4 rounded-card border border-border/60 bg-surface p-6 shadow-soft">
         <p className="text-sm font-semibold text-ink">Sources de ce client</p>
         <p className="mb-3 mt-0.5 text-xs text-muted">
@@ -154,7 +196,16 @@ export default async function EditClientPage({
                       defaultValue={binding?.externalId ?? ""}
                       className="min-w-[160px] flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-ink outline-none transition-colors focus:border-brand"
                     >
-                      <option value="">— Choisir un compte —</option>
+                      <option value="">— Détacher —</option>
+                      {/* Keep the saved binding selectable even if it's not in
+                          the fresh listing, so an unrelated save can't silently
+                          detach it. */}
+                      {binding?.externalId &&
+                        !accounts.some((a) => a.id === binding.externalId) && (
+                          <option value={binding.externalId}>
+                            {binding.label || binding.externalId} (actuel)
+                          </option>
+                        )}
                       {accounts.map((a) => (
                         <option key={a.id} value={a.id}>
                           {a.label}

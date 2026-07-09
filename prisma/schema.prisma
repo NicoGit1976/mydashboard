@@ -47,6 +47,17 @@ model Report {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   widgets      Widget[]
+  shareLinks   ShareLink[]
+}
+
+// Public read-only access to a report (the DashThis-style client link).
+// Token is unguessable (32 hex chars); revoking = deleting the row.
+model ShareLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  reportId  String
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 model Widget {

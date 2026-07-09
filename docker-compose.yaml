@@ -7,6 +7,7 @@ networks:
 volumes:
   mydashboard_data:
   mydashboard_uploads:
+  mydashboard_backups:
 
 services:
   app:
@@ -26,14 +27,29 @@ services:
       - APP_URL=https://tools.d-analytica.cloud
       - AUTH_SECRET=${AUTH_SECRET}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - SEED_EMAIL=${SEED_EMAIL}
       - SEED_PASSWORD=${SEED_PASSWORD}
       - SEED_NAME=${SEED_NAME}
-      - SEED_RESET=${SEED_RESET}
+      - SEED_RESET=${SEED_RESET:-}
+      # Connector OAuth apps (see CONNECTORS-SETUP.md). Blank until configured.
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - META_CLIENT_ID=${META_CLIENT_ID:-}
+      - META_CLIENT_SECRET=${META_CLIENT_SECRET:-}
+      - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID:-}
+      - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET:-}
+      - LINKEDIN_API_VERSION=${LINKEDIN_API_VERSION:-}
     volumes:
       - mydashboard_data:/app/data
       - mydashboard_uploads:/app/public/uploads
+    healthcheck:
+      # node fetch probe (no curl in node:22-slim)
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     labels:
       - traefik.enable=true
       - traefik.docker.network=edge
@@ -42,3 +58,30 @@ services:
       - traefik.http.routers.mydashboard.tls=true
       - traefik.http.routers.mydashboard.tls.certresolver=letsencrypt
       - traefik.http.services.mydashboard.loadbalancer.server.port=3000
+
+  # Daily online backup of the SQLite DB (sqlite3 .backup = WAL-safe), keeping
+  # the last 7 in a dedicated volume. Restore = copy a backup-*.db over prod.db.
+  backup:
+    image: alpine:3.20
+    container_name: mydashboard-backup
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - mydashboard_data:/data:ro
+      - mydashboard_backups:/backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache sqlite >/dev/null 2>&1
+        while true; do
+          ts=$$(date +%F)
+          if sqlite3 /data/prod.db ".backup /backups/backup-$$ts.db" 2>/dev/null; then
+            echo "[backup] wrote backup-$$ts.db"
+          else
+            echo "[backup] backup failed (db not ready?)"
+          fi
+          ls -1t /backups/backup-*.db 2>/dev/null | tail -n +8 | xargs -r rm -f
+          sleep 86400
+        done

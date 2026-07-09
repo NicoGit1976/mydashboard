@@ -20,10 +20,11 @@ export type KpiFormat = "number" | "percent" | "duration";
 export type KpiMetric = {
   label: string;
   value: number;
-  delta: number;
+  delta?: number; // undefined = trend unknown (a live provider gave no comparison)
   source: SourceKey;
   spark: number[];
   format?: KpiFormat;
+  invert?: boolean; // lower-is-better (e.g. bounce rate): a drop is good
 };
 
 // Shared sparkline shapes (deterministic).
@@ -40,7 +41,7 @@ export const KPI_METRICS: Record<string, KpiMetric> = {
   visitors: { label: "Visiteurs uniques", value: 31870, delta: 8.1, source: "ga4", spark: RISE },
   pageviews: { label: "Pages vues", value: 142900, delta: 9.6, source: "matomo", spark: RISE },
   new_users: { label: "Nouveaux visiteurs", value: 21450, delta: 15.3, source: "ga4", spark: UP },
-  bounce_rate: { label: "Taux de rebond", value: 38, delta: -2.4, source: "ga4", spark: DOWN, format: "percent" },
+  bounce_rate: { label: "Taux de rebond", value: 38, delta: -2.4, source: "ga4", spark: DOWN, format: "percent", invert: true },
   avg_duration: { label: "Durée moy. session", value: 134, delta: 6.2, source: "matomo", spark: UP, format: "duration" },
   conversions: { label: "Conversions", value: 642, delta: 18.9, source: "ga4", spark: UP },
   // Instagram
@@ -117,11 +118,13 @@ export const WIDGET_PALETTE = [
   "content", "illustration",
 ].map((key) => ({ key, label: WIDGET_BLUEPRINTS[key].label }));
 
-// Starter layout created for a client's first report.
+// Starter layout created for a client's first report. Uses the NEUTRAL content
+// block (not content:demo — that injects a fabricated analysis about the demo
+// hotel that must never appear in a real client's report unprompted).
 export const DEFAULT_REPORT_LAYOUT = [
   "kpi:sessions", "kpi:visitors", "kpi:social", "kpi:gmb",
   "line:traffic", "donut:channels", "bar:networks", "table:pages",
-  "content:demo", "illustration",
+  "content", "illustration",
 ];
 
 // Tones for the AI report summary widget.
