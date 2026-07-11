@@ -17,6 +17,25 @@ async function main() {
 
   const existing = await db.user.findUnique({ where: { email } });
 
+  // One-time admin rename + password reset (recovery / login-id change). Moves
+  // the SEED_RENAME_FROM account to the new SEED_EMAIL id and sets the chosen
+  // password as DIRECTLY usable (no forced change). Clients stay attached (same
+  // user id). Idempotent: skipped once the target id already exists.
+  const renameFrom = clean(process.env.SEED_RENAME_FROM || "").toLowerCase();
+  if (renameFrom && renameFrom !== email && !existing) {
+    const old = await db.user.findUnique({ where: { email: renameFrom } });
+    if (old) {
+      await db.user.update({
+        where: { id: old.id },
+        data: { email, name, role: "ADMIN", passwordHash, mustChangePassword: false },
+      });
+      console.log(
+        `Seed OK — renamed ${renameFrom} → ${email} · password reset · direct login · clients: ${await db.client.count()}`,
+      );
+      return;
+    }
+  }
+
   // Reset the temp password when the admin hasn't completed first-login yet
   // (mustChangePassword still true), OR when SEED_RESET is explicitly set — used
   // to recover a locked-out admin. Once they set their own password (and

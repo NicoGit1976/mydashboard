@@ -45,15 +45,15 @@ export default function LoginPage() {
           <h1 className="text-base font-semibold text-ink">Connexion</h1>
           <p className="mt-1 text-sm text-ink-soft">Accède à tes rapports.</p>
 
-          <label className="mt-5 block text-xs font-medium text-ink-soft">Email</label>
+          <label className="mt-5 block text-xs font-medium text-ink-soft">Identifiant</label>
           <input
-            type="email"
-            autoComplete="email"
+            type="text"
+            autoComplete="username"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-brand"
-            placeholder="nom@domaine.com"
+            placeholder="identifiant ou email"
           />
 
           <label className="mt-4 block text-xs font-medium text-ink-soft">
