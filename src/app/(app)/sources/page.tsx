@@ -4,7 +4,8 @@ import { CONNECTORS, isConfigured } from "@/lib/connectors";
 import ConnectorCard from "@/components/sources/ConnectorCard";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  notconfigured: "Ce connecteur n'a pas encore ses identifiants OAuth (à ajouter dans .env).",
+  notconfigured:
+    "Ce connecteur n'est pas encore configuré : il attend soit une app OAuth, soit des identifiants à coller.",
   state: "Échec de la vérification de sécurité OAuth. Réessaie.",
   token: "Le fournisseur a refusé l'échange de jeton.",
   exchange: "Erreur réseau pendant l'échange OAuth.",
@@ -58,8 +59,12 @@ export default async function SourcesPage({
                 difficulty: c.difficulty,
                 description: c.description,
                 tokenFields: c.tokenFields ?? [],
+                pasteHelp: c.pasteHelp,
+                appOnly: c.appOnly,
               }}
-              configured={isConfigured(c)}
+              // "Configured" now means: connectable by SOME route — an OAuth app
+              // in the env, or a credential the operator can paste.
+              configured={isConfigured(c) || (c.tokenFields?.length ?? 0) > 0}
               connection={conn ? { status: conn.status, url: meta?.url ?? null } : null}
             />
           );

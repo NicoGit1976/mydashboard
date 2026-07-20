@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { getConnector } from "@/lib/connectors";
 import { exchangeLongLivedToken } from "@/lib/providers/meta";
+import { GA4_SCOPE, GSC_SCOPE, getServiceAccountToken } from "@/lib/providers/google-sa";
 
 export type LiveToken = { token: string; meta: Record<string, unknown> };
 
@@ -84,6 +85,15 @@ export async function getValidToken(
     return null;
   }
   const meta = (conn.meta ?? {}) as Record<string, unknown>;
+
+  // A pasted service-account key is not a bearer token: exchange it for one.
+  // Same credential for GA4 and Search Console — only the scope differs.
+  if (meta.credType === "service_account") {
+    const clientEmail = String(meta.client_email ?? "");
+    const scope = provider === "gsc" ? GSC_SCOPE : GA4_SCOPE;
+    const minted = await getServiceAccountToken(clientEmail, token, scope);
+    return minted ? { token: minted, meta } : null;
+  }
 
   // Read-only path (public /share pages): never refresh or mutate the owner's
   // connection state and never spend their API quota — an unauthenticated viewer

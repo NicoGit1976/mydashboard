@@ -63,6 +63,10 @@ export const KPI_METRICS: Record<string, KpiMetric> = {
   gmb_calls: { label: "Appels (fiche Google)", value: 312, delta: 8.4, source: "gmb", spark: UP },
   gmb_directions: { label: "Demandes d'itinéraire", value: 1480, delta: 6.7, source: "gmb", spark: UP },
   // Cross-network (kept for backward compatibility)
+  gsc_clicks: { label: "Clics Google", value: 3820, delta: 9.2, source: "gmb", spark: UP },
+  gsc_impressions: { label: "Impressions Google", value: 96400, delta: 11.5, source: "gmb", spark: UP },
+  gsc_ctr: { label: "CTR Google", value: 4, delta: 0.4, source: "gmb", spark: UP, format: "percent" },
+  gsc_position: { label: "Position moyenne", value: 12, delta: 3.1, source: "gmb", spark: DOWN, invert: true },
   social: { label: "Engagement social", value: 18640, delta: 23.7, source: "instagram", spark: UP },
 };
 
@@ -88,6 +92,10 @@ export const WIDGET_BLUEPRINTS: Record<string, Blueprint> = {
   "kpi:visitors": { type: "kpi", label: "KPI · Visiteurs", span: 3, config: { metric: "visitors" } },
   "kpi:pageviews": { type: "kpi", label: "KPI · Pages vues", span: 3, config: { metric: "pageviews" } },
   "kpi:conversions": { type: "kpi", label: "KPI · Conversions", span: 3, config: { metric: "conversions" } },
+  "kpi:gsc_clicks": { type: "kpi", label: "KPI · Clics Google", span: 3, config: { metric: "gsc_clicks" } },
+  "kpi:gsc_impressions": { type: "kpi", label: "KPI · Impressions Google", span: 3, config: { metric: "gsc_impressions" } },
+  "kpi:gsc_ctr": { type: "kpi", label: "KPI · CTR Google", span: 3, config: { metric: "gsc_ctr" } },
+  "kpi:gsc_position": { type: "kpi", label: "KPI · Position moyenne", span: 3, config: { metric: "gsc_position" } },
   "kpi:social": { type: "kpi", label: "KPI · Engagement", span: 3, config: { metric: "social" } },
   "kpi:gmb": { type: "kpi", label: "KPI · Fiche Google", span: 3, config: { metric: "gmb_views" } },
   "kpi:gmb_searches": { type: "kpi", label: "KPI · Recherches Google", span: 3, config: { metric: "gmb_searches" } },
@@ -111,6 +119,7 @@ export const WIDGET_BLUEPRINTS: Record<string, Blueprint> = {
 export const WIDGET_PALETTE = [
   "ai",
   "kpi:sessions", "kpi:visitors", "kpi:pageviews", "kpi:conversions",
+  "kpi:gsc_clicks", "kpi:gsc_impressions", "kpi:gsc_ctr", "kpi:gsc_position",
   "kpi:social", "kpi:gmb", "kpi:gmb_searches",
   "kpi:ig", "kpi:ig_reach", "kpi:fb_reach", "kpi:li", "kpi:li_impressions",
   "icon",

@@ -6,6 +6,7 @@ import { fetchGa4 } from "@/lib/providers/google";
 import { fetchMeta } from "@/lib/providers/meta";
 import { fetchLinkedin } from "@/lib/providers/linkedin";
 import { fetchMatomo } from "@/lib/providers/matomo";
+import { fetchGsc } from "@/lib/providers/gsc";
 import type { ProviderData } from "@/lib/providers/types";
 import type { SourceKey } from "@/lib/sources";
 
@@ -100,6 +101,7 @@ export async function getReportData(client: Client, readOnly = false): Promise<R
             if (s.provider === "meta") return fetchMeta(t.token, s.externalId);
             if (s.provider === "linkedin") return fetchLinkedin(t.token, s.externalId);
             if (s.provider === "matomo") return fetchMatomo(t.token, s.externalId, t.meta);
+            if (s.provider === "gsc") return fetchGsc(t.token, s.externalId);
             return Promise.resolve({ kpis: {} } as ProviderData);
           }),
         );

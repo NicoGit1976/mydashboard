@@ -8,6 +8,8 @@ export type TokenField = {
   label: string;
   placeholder?: string;
   type?: "text" | "password";
+  multiline?: boolean;
+  help?: string;
 };
 
 export type ConnectorDef = {
@@ -26,6 +28,14 @@ export type ConnectorDef = {
     extraAuthParams?: Record<string, string>;
   };
   tokenFields?: TokenField[];
+  // What a pasted credential IS, so connection-tokens knows how to turn it into
+  // a bearer token. Absent = a plain access token used as-is.
+  credType?: "token" | "service_account";
+  // Shown above the paste form. Where to get the credential, in plain French.
+  pasteHelp?: string;
+  // Set when the provider CANNOT be connected without a reviewed app. Renders
+  // as an honest "unavailable" state instead of a button that leads nowhere.
+  appOnly?: string;
 };
 
 export const CONNECTORS: ConnectorDef[] = [
@@ -48,6 +58,26 @@ export const CONNECTORS: ConnectorDef[] = [
     authType: "oauth",
     difficulty: "easy",
     description: "Audience & trafic web via l'API GA4 Data.",
+    credType: "service_account",
+    pasteHelp:
+      "Le plus simple : un compte de service Google. Crée-le sur console.cloud.google.com " +
+      "(IAM > Comptes de service > Clé JSON), puis ajoute son adresse e-mail comme " +
+      "Lecteur dans GA4 (Admin > Gestion des accès). Aucune app OAuth, aucune expiration.",
+    tokenFields: [
+      {
+        name: "client_email",
+        label: "Adresse du compte de service",
+        placeholder: "mydashboard@mon-projet.iam.gserviceaccount.com",
+        help: "Champ « client_email » du fichier JSON.",
+      },
+      {
+        name: "token",
+        label: "Clé privée",
+        type: "password",
+        multiline: true,
+        help: "Champ « private_key » du JSON, de -----BEGIN à -----END inclus.",
+      },
+    ],
     oauth: {
       authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
       tokenUrl: "https://oauth2.googleapis.com/token",
@@ -56,6 +86,33 @@ export const CONNECTORS: ConnectorDef[] = [
       clientSecretEnv: "GOOGLE_CLIENT_SECRET",
       extraAuthParams: { access_type: "offline", prompt: "consent" },
     },
+  },
+  {
+    key: "gsc",
+    label: "Google Search Console",
+    color: "#4285F4",
+    authType: "token",
+    difficulty: "easy",
+    description: "Requêtes, clics, impressions et position moyenne dans Google.",
+    credType: "service_account",
+    pasteHelp:
+      "La MÊME clé de compte de service que GA4. Ajoute ensuite son adresse e-mail " +
+      "comme utilisateur de la propriété dans Search Console (Paramètres > Utilisateurs).",
+    tokenFields: [
+      {
+        name: "client_email",
+        label: "Adresse du compte de service",
+        placeholder: "mydashboard@mon-projet.iam.gserviceaccount.com",
+        help: "Champ « client_email » du fichier JSON.",
+      },
+      {
+        name: "token",
+        label: "Clé privée",
+        type: "password",
+        multiline: true,
+        help: "Champ « private_key » du JSON, en entier.",
+      },
+    ],
   },
   {
     key: "meta",

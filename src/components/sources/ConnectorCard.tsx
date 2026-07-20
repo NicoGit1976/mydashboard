@@ -1,10 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { Check, Plug, TriangleAlert } from "lucide-react";
-import { disconnectProvider, saveTokenConnection } from "@/lib/connection-actions";
+import {
+  disconnectProvider,
+  saveTokenConnection,
+  type ConnectState,
+} from "@/lib/connection-actions";
 
-type TokenField = { name: string; label: string; placeholder?: string; type?: string };
+type TokenField = {
+  name: string;
+  label: string;
+  placeholder?: string;
+  type?: string;
+  multiline?: boolean;
+  help?: string;
+};
 type Def = {
   key: string;
   label: string;
@@ -13,6 +24,8 @@ type Def = {
   difficulty: "easy" | "medium" | "hard";
   description: string;
   tokenFields: TokenField[];
+  pasteHelp?: string;
+  appOnly?: string;
 };
 type Conn = { status: string; url: string | null } | null;
 
@@ -33,7 +46,10 @@ export default function ConnectorCard({
 }) {
   const [open, setOpen] = useState(false);
   const connected = !!connection;
-  const save = saveTokenConnection.bind(null, def.key);
+  const [state, save, pending] = useActionState<ConnectState, FormData>(
+    saveTokenConnection.bind(null, def.key),
+    null,
+  );
   const disconnect = disconnectProvider.bind(null, def.key);
 
   return (
@@ -78,25 +94,57 @@ export default function ConnectorCard({
               </button>
             </form>
           </div>
-        ) : def.authType === "token" ? (
+        ) : def.tokenFields.length > 0 ? (
           open ? (
             <form action={save} className="space-y-2">
+              {def.pasteHelp && (
+                <p className="rounded-lg bg-bg px-3 py-2 text-[11px] leading-relaxed text-ink-soft">
+                  {def.pasteHelp}
+                </p>
+              )}
               {def.tokenFields.map((f) => (
-                <input
-                  key={f.name}
-                  name={f.name}
-                  type={f.type ?? "text"}
-                  placeholder={f.placeholder ?? f.label}
-                  required={f.name === "token"}
-                  className="w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-ink outline-none transition-colors focus:border-brand"
-                />
+                <div key={f.name}>
+                  <label className="block text-[11px] font-medium text-ink-soft">{f.label}</label>
+                  {/* A private key is multi-line: a single-line input makes it
+                      practically impossible to paste and check. */}
+                  {f.multiline ? (
+                    <textarea
+                      name={f.name}
+                      rows={4}
+                      placeholder={f.placeholder ?? f.label}
+                      required={f.name === "token"}
+                      spellCheck={false}
+                      className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 font-mono text-[11px] text-ink outline-none transition-colors focus:border-brand"
+                    />
+                  ) : (
+                    <input
+                      name={f.name}
+                      type={f.type ?? "text"}
+                      placeholder={f.placeholder ?? f.label}
+                      required={f.name === "token"}
+                      spellCheck={false}
+                      className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-ink outline-none transition-colors focus:border-brand"
+                    />
+                  )}
+                  {f.help && <p className="mt-0.5 text-[10px] text-muted">{f.help}</p>}
+                </div>
               ))}
+              {state && (
+                <p
+                  className={`text-[11px] font-medium ${
+                    state.ok ? "text-positive" : "text-negative"
+                  }`}
+                >
+                  {state.message}
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+                  disabled={pending}
+                  className="flex-1 rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
                 >
-                  Connecter
+                  {pending ? "Vérification…" : "Connecter"}
                 </button>
                 <button
                   type="button"

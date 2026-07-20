@@ -3,6 +3,7 @@ import { listGa4Properties } from "@/lib/providers/google";
 import { listMetaPages } from "@/lib/providers/meta";
 import { listLinkedinOrgs } from "@/lib/providers/linkedin";
 import { listMatomoSites } from "@/lib/providers/matomo";
+import { listGscSites } from "@/lib/providers/gsc";
 import type { AccountOption } from "@/lib/providers/types";
 
 // Lists the selectable accounts/properties/pages/orgs for a connected provider,
@@ -19,6 +20,7 @@ export async function listProviderAccounts(
     if (provider === "meta") return await listMetaPages(t.token);
     if (provider === "linkedin") return await listLinkedinOrgs(t.token);
     if (provider === "matomo") return await listMatomoSites(t.token, t.meta);
+    if (provider === "gsc") return await listGscSites(t.token);
     return [];
   } catch {
     return [];
