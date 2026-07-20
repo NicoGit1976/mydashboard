@@ -41,14 +41,38 @@ export default function ShareButton({
   }
 
   async function onCopy() {
-    // Belt-and-braces: always copy an absolute URL, even if origin isn't set yet.
+    // Always copy an ABSOLUTE url, even if origin isn't resolved yet.
     const absolute =
       url.startsWith("http") ? url : `${window.location.origin}/share/${token}`;
+
+    let ok = false;
     try {
       await navigator.clipboard.writeText(absolute);
+      ok = true;
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      // Fallback when the Clipboard API is unavailable/blocked: select the
+      // field and use the legacy copy command, so the button never silently
+      // does nothing (which looks like "it copied the wrong thing").
+      try {
+        const el = inputRef.current;
+        if (el) {
+          el.focus();
+          el.select();
+          el.setSelectionRange(0, absolute.length);
+          ok = document.execCommand("copy");
+        }
+      } catch {
+        ok = false;
+      }
+    }
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } else {
+      // Last resort: leave it selected so Ctrl/Cmd+C works.
       inputRef.current?.select();
     }
   }
