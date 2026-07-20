@@ -165,7 +165,9 @@ export default async function EditClientPage({
       <div className="mt-4 rounded-card border border-border/60 bg-surface p-6 shadow-soft">
         <p className="text-sm font-semibold text-ink">Sources de ce client</p>
         <p className="mb-3 mt-0.5 text-xs text-muted">
-          Pour chaque compte connecté, indique quelle propriété / page / site correspond à ce client.
+          Choisis, pour chaque source connectée, <strong className="font-medium text-ink-soft">quel site / propriété / page</strong>{" "}
+          correspond à ce client. <strong className="font-medium text-ink-soft">C&apos;est ce choix qui bascule le rapport
+          sur les vraies données</strong> — sans lui, il reste en démonstration.
         </p>
         {connections.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border bg-bg px-3 py-3 text-xs text-muted">
@@ -196,7 +198,11 @@ export default async function EditClientPage({
                       defaultValue={binding?.externalId ?? ""}
                       className="min-w-[160px] flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-ink outline-none transition-colors focus:border-brand"
                     >
-                      <option value="">— Détacher —</option>
+                      <option value="">
+                        {binding
+                          ? "— Détacher (ne plus utiliser cette source) —"
+                          : "— Choisir un site… (aucun pour l'instant) —"}
+                      </option>
                       {/* Keep the saved binding selectable even if it's not in
                           the fresh listing, so an unrelated save can't silently
                           detach it. */}
@@ -232,6 +238,16 @@ export default async function EditClientPage({
                   >
                     {binding ? "Mettre à jour" : "Enregistrer"}
                   </button>
+                  {/* Explicit state: is this source actually feeding the report? */}
+                  <p
+                    className={`w-full text-[11px] ${
+                      binding ? "font-medium text-positive" : "text-muted"
+                    }`}
+                  >
+                    {binding
+                      ? `✓ Ce rapport est alimenté par « ${binding.label || binding.externalId} » (données réelles).`
+                      : "Aucun site sélectionné — le rapport affiche des données de démonstration."}
+                  </p>
                 </form>
               );
             })}
