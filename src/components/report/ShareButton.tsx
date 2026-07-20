@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Check, Copy, Link2, Loader2, Share2, X } from "lucide-react";
 import { getOrCreateShareLink, revokeShareLink } from "@/lib/share-actions";
 
@@ -19,7 +19,12 @@ export default function ShareButton({
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const url = token ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/${token}` : "";
+  // Resolve the origin AFTER mount: computing it inline during render yields an
+  // empty string on the server pass, which leaked a relative "/share/…" into the
+  // field (and the clipboard).
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const url = token ? `${origin}/share/${token}` : "";
 
   function onShare() {
     if (token) {
@@ -36,8 +41,11 @@ export default function ShareButton({
   }
 
   async function onCopy() {
+    // Belt-and-braces: always copy an absolute URL, even if origin isn't set yet.
+    const absolute =
+      url.startsWith("http") ? url : `${window.location.origin}/share/${token}`;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(absolute);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
