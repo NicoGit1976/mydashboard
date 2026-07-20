@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, getClientFor } from "@/lib/access";
 import { deleteClient, updateClient } from "@/lib/client-actions";
 import { saveClientSource } from "@/lib/client-source-actions";
 import { updateReportMeta } from "@/lib/report-actions";
@@ -10,6 +11,8 @@ import { getOrCreateReport } from "@/lib/report";
 import { listProviderAccounts } from "@/lib/provider-accounts";
 import { getConnector } from "@/lib/connectors";
 import DeleteClientButton from "@/components/DeleteClientButton";
+import AssigneesForm from "@/components/clients/AssigneesForm";
+import { listAssignableUsers } from "@/lib/assignment-actions";
 import { initials } from "@/lib/initials";
 
 const inputCls =
@@ -24,16 +27,24 @@ export default async function EditClientPage({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const client = await db.client.findUnique({ where: { id } });
-  if (!client || client.ownerId !== session.user.id) notFound();
+  const actor = await getActor();
+  if (!actor) redirect("/login");
+  const client = await getClientFor(actor, id, "view");
+  if (!client) notFound();
+
+  const canManage = client.ownerId === actor.id || actor.role === "SUPER_ADMIN";
+  const assignable = canManage ? await listAssignableUsers(id) : [];
+  const assigned = client.assignments.map((a) => a.userId);
 
   const update = updateClient.bind(null, id);
   const remove = deleteClient.bind(null, id);
   const report = await getOrCreateReport(client.id);
   const updateReport = updateReportMeta.bind(null, report.id, id);
 
+  // The connections that can feed THIS client are its owner's, not the viewer's:
+  // an invited member has no credentials of their own for it.
   const connections = await db.connection.findMany({
-    where: { ownerId: session.user.id },
+    where: { ownerId: client.ownerId },
     orderBy: { createdAt: "asc" },
   });
   const bindings = await db.clientSource.findMany({ where: { clientId: id } });
@@ -46,7 +57,7 @@ export default async function EditClientPage({
     connections.map(async (conn) => {
       accountsByProvider.set(
         conn.provider,
-        await listProviderAccounts(session.user.id, conn.provider),
+        await listProviderAccounts(client.ownerId, conn.provider),
       );
     }),
   );
@@ -257,6 +268,19 @@ export default async function EditClientPage({
         )}
       </div>
 
+      {canManage && (
+        <div className="mt-4 rounded-card border border-border/60 bg-surface p-6 shadow-soft">
+          <p className="text-sm font-semibold text-ink">Qui peut travailler sur ce client</p>
+          <p className="mb-3 mt-0.5 text-xs text-muted">
+            Un client sans personne coché reste <strong className="font-medium text-ink-soft">privé</strong> :
+            toi seul le vois. Les membres cochés peuvent consulter et modifier son rapport,
+            mais ne peuvent ni le supprimer ni changer ces accès.
+          </p>
+          <AssigneesForm clientId={id} people={assignable} assigned={assigned} />
+        </div>
+      )}
+
+      {canManage && (
       <div className="mt-4 rounded-card border border-negative/30 bg-surface p-6 shadow-soft">
         <p className="text-sm font-semibold text-ink">Zone de danger</p>
         <p className="mb-3 mt-0.5 text-xs text-muted">
@@ -264,6 +288,7 @@ export default async function EditClientPage({
         </p>
         <DeleteClientButton action={remove} />
       </div>
+      )}
     </div>
   );
 }

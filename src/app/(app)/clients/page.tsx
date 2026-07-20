@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { initials } from "@/lib/initials";
+import { canCreateClients, getActor, visibleClientsWhere } from "@/lib/access";
 
 export default async function ClientsPage() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const clients = userId
+  const actor = await getActor();
+  const clients = actor
     ? await db.client.findMany({
-        where: { ownerId: userId },
+        where: visibleClientsWhere(actor),
         orderBy: { createdAt: "asc" },
+        include: { assignments: { select: { userId: true } } },
       })
     : [];
+  const mayCreate = actor ? canCreateClients(actor) : false;
 
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-6">
@@ -20,15 +21,22 @@ export default async function ClientsPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-ink">Clients</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            {clients.length} client{clients.length > 1 ? "s" : ""} — tu ne vois que les tiens (cloisonné).
+            {clients.length} client{clients.length > 1 ? "s" : ""}
+            {actor?.role === "SUPER_ADMIN"
+              ? " — vue complète de l'instance."
+              : actor?.role === "ADMIN"
+                ? " — les tiens, plus ceux où on t'a invité."
+                : " — ceux où un administrateur t'a invité."}
           </p>
         </div>
+        {mayCreate && (
         <Link
           href="/clients/new"
           className="inline-flex items-center gap-2 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
           <Plus size={16} /> Nouveau client
         </Link>
+        )}
       </div>
 
       <div className="mt-5 grid grid-cols-12 gap-4">

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, visibleClientsWhere } from "@/lib/access";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 
@@ -20,10 +21,11 @@ export default async function AppLayout({
     if (u?.mustChangePassword) redirect("/onboarding/password");
   }
 
-  const userName = session?.user?.name ?? session?.user?.email ?? "Utilisateur";
-  const clients = session?.user?.id
+  const actor = await getActor();
+  const userName = session?.user?.name ?? actor?.username ?? "Utilisateur";
+  const clients = actor
     ? await db.client.findMany({
-        where: { ownerId: session.user.id },
+        where: visibleClientsWhere(actor),
         orderBy: { createdAt: "asc" },
         select: { id: true, name: true, brandColor: true },
       })
@@ -31,12 +33,12 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar isAdmin={session?.user?.role === "ADMIN"} />
+      <Sidebar isAdmin={actor?.role === "SUPER_ADMIN"} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           userName={userName}
           clients={clients}
-          isAdmin={session?.user?.role === "ADMIN"}
+          isAdmin={actor?.role === "SUPER_ADMIN"}
         />
         <main className="flex-1">{children}</main>
       </div>

@@ -75,7 +75,9 @@ services:
       - /bin/sh
       - -c
       - |
-        apk add --no-cache sqlite || echo "[backup] WARNING: sqlite install failed"
+        # No `|| true`: a silent install failure would turn this sidecar into a
+        # container that looks healthy and backs up nothing.
+        apk add --no-cache sqlite
         while true; do
           if [ ! -f /data/prod.db ]; then
             echo "[backup] waiting for /data/prod.db…"; sleep 30; continue

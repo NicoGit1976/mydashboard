@@ -1,15 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, getClientFor } from "@/lib/access";
 import { getConnector } from "@/lib/connectors";
 
 async function ownsClient(clientId: string) {
-  const session = await auth();
-  if (!session?.user?.id) return false;
-  const client = await db.client.findUnique({ where: { id: clientId } });
-  return !!client && client.ownerId === session.user.id;
+  const actor = await getActor();
+  if (!actor) return false;
+  return !!(await getClientFor(actor, clientId, "edit"));
 }
 
 // Bind (or update) which external entity of a provider maps to this client.

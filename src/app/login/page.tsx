@@ -6,7 +6,9 @@ import { signIn } from "next-auth/react";
 import { LayoutDashboard, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  // Must stay named `identifier`: NextAuth silently drops credential keys that
+  // aren't declared in the provider's `credentials` object.
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,10 +18,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const res = await signIn("credentials", { email, password, redirect: false });
+    const res = await signIn("credentials", { identifier, password, redirect: false });
     setLoading(false);
     if (res?.error) {
-      setError("Email ou mot de passe incorrect.");
+      setError("Identifiant ou mot de passe incorrect.");
     } else {
       router.push("/overview");
       router.refresh();
@@ -49,9 +51,12 @@ export default function LoginPage() {
           <input
             type="text"
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-brand"
             placeholder="identifiant ou email"
           />

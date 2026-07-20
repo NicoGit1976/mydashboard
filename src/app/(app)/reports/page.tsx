@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { initials } from "@/lib/initials";
+import { getActor, visibleReportsWhere } from "@/lib/access";
 
 export default async function ReportsPage() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const reports = userId
+  const actor = await getActor();
+  const reports = actor
     ? await db.report.findMany({
-        where: { client: { ownerId: userId } },
+        where: visibleReportsWhere(actor),
         include: { client: true, _count: { select: { widgets: true } } },
         orderBy: { updatedAt: "desc" },
       })

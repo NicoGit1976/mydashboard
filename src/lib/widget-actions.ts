@@ -1,33 +1,32 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, getReportClientFor, getWidgetClientFor } from "@/lib/access";
 import { WIDGET_BLUEPRINTS } from "@/lib/metrics-catalog";
 import { sanitizeReportHtml } from "@/lib/sanitize";
 
 async function requireUserId() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("unauthenticated");
-  return session.user.id;
+  const actor = await getActor();
+  if (!actor) throw new Error("unauthenticated");
+  return actor.id;
 }
 
-// Ownership guards (cloisonnement): a user can only touch widgets/reports that
-// belong to a client they own.
-async function ownedReport(reportId: string, userId: string) {
-  const report = await db.report.findUnique({
-    where: { id: reportId },
-    include: { client: true },
-  });
-  return report && report.client.ownerId === userId ? report : null;
+// Access guards: a user may touch widgets/reports of any client they can see —
+// their own, or one they were invited onto. Everything routes through access.ts
+// so invitations are never silently ignored.
+async function ownedReport(reportId: string, _userId: string) {
+  const actor = await getActor();
+  if (!actor) return null;
+  const found = await getReportClientFor(actor, reportId, "edit");
+  return found ? found.report : null;
 }
 
-async function ownedWidget(widgetId: string, userId: string) {
-  const widget = await db.widget.findUnique({
-    where: { id: widgetId },
-    include: { report: { include: { client: true } } },
-  });
-  return widget && widget.report.client.ownerId === userId ? widget : null;
+async function ownedWidget(widgetId: string, _userId: string) {
+  const actor = await getActor();
+  if (!actor) return null;
+  const found = await getWidgetClientFor(actor, widgetId, "edit");
+  return found ? found.widget : null;
 }
 
 export async function addWidget(reportId: string, clientId: string, blueprintKey: string) {

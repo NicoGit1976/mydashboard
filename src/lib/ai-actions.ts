@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, getClientFor } from "@/lib/access";
 import { getReportData, type ReportData } from "@/lib/report-data";
 import { sanitizeReportHtml } from "@/lib/sanitize";
 
@@ -84,7 +85,8 @@ export async function generateSummary(
     where: { id: widgetId },
     include: { report: { include: { client: true } } },
   });
-  if (!widget || widget.report.client.ownerId !== session.user.id)
+  const aiActor = await getActor();
+  if (!widget || !aiActor || !(await getClientFor(aiActor, widget.report.clientId, "edit")))
     return { ok: false, error: "Accès refusé." };
 
   if (!process.env.ANTHROPIC_API_KEY)

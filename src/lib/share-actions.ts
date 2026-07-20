@@ -3,15 +3,15 @@
 import { randomBytes } from "crypto";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, getReportClientFor } from "@/lib/access";
 
 export type ShareState = { ok: boolean; token?: string; error?: string };
 
-async function ownedReport(reportId: string, userId: string) {
-  const report = await db.report.findUnique({
-    where: { id: reportId },
-    include: { client: true },
-  });
-  return report && report.client.ownerId === userId ? report : null;
+async function ownedReport(reportId: string, _userId: string) {
+  const actor = await getActor();
+  if (!actor) return null;
+  const found = await getReportClientFor(actor, reportId, "edit");
+  return found ? found.report : null;
 }
 
 // Returns the report's share token, creating it on first call (idempotent —

@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor } from "@/lib/access";
 import { updateAgency } from "@/lib/user-actions";
 import { initials } from "@/lib/initials";
 import ChangePasswordForm from "@/components/settings/ChangePasswordForm";
@@ -7,7 +8,8 @@ import ChangePasswordForm from "@/components/settings/ChangePasswordForm";
 export default async function SettingsPage() {
   const session = await auth();
   const name = session?.user?.name ?? "Utilisateur";
-  const email = session?.user?.email ?? "—";
+  const actor = await getActor();
+  const email = actor?.username ?? session?.user?.email ?? "—";
   const user = session?.user?.id
     ? await db.user.findUnique({ where: { id: session.user.id } })
     : null;

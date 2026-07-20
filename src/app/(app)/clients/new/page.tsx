@@ -2,14 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft } from "lucide-react";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { saveImageUpload } from "@/lib/uploads";
+import { canCreateClients, getActor } from "@/lib/access";
 
 async function createClient(formData: FormData) {
   "use server";
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const actor = await getActor();
+  if (!actor) redirect("/login");
+  // Members work on clients they are invited to; they don't own any.
+  if (!canCreateClients(actor)) redirect("/clients");
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) redirect("/clients/new");
@@ -22,14 +24,17 @@ async function createClient(formData: FormData) {
   if (logo instanceof File && logo.size > 0) logoUrl = await saveImageUpload(logo);
 
   const client = await db.client.create({
-    data: { ownerId: session.user.id, name, sector, brandColor, logoUrl },
+    data: { ownerId: actor.id, name, sector, brandColor, logoUrl },
   });
 
   revalidatePath("/clients");
   redirect(`/clients/${client.id}`);
 }
 
-export default function NewClientPage() {
+export default async function NewClientPage() {
+  const actor = await getActor();
+  if (!actor) redirect("/login");
+  if (!canCreateClients(actor)) redirect("/clients");
   return (
     <div className="mx-auto max-w-xl px-6 py-6">
       <Link

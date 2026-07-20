@@ -1,21 +1,24 @@
 import Link from "next/link";
 import { FileText, LayoutGrid, Plug, Plus, Users } from "lucide-react";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { initials } from "@/lib/initials";
+import { getActor, visibleClientsWhere, visibleReportsWhere } from "@/lib/access";
 
 export default async function OverviewPage() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return null;
+  const actor = await getActor();
+  if (!actor) return null;
+  const userId = actor.id;
+  const clientsWhere = visibleClientsWhere(actor);
+  const reportsWhere = visibleReportsWhere(actor);
 
   const [clientCount, reportCount, widgetCount, sourceCount, recent] = await Promise.all([
-    db.client.count({ where: { ownerId: userId } }),
-    db.report.count({ where: { client: { ownerId: userId } } }),
-    db.widget.count({ where: { report: { client: { ownerId: userId } } } }),
+    db.client.count({ where: clientsWhere }),
+    db.report.count({ where: reportsWhere }),
+    db.widget.count({ where: { report: reportsWhere } }),
+    // Connections stay strictly personal: they hold this account's credentials.
     db.connection.count({ where: { ownerId: userId } }),
     db.report.findMany({
-      where: { client: { ownerId: userId } },
+      where: reportsWhere,
       include: { client: true },
       orderBy: { updatedAt: "desc" },
       take: 5,
@@ -32,7 +35,7 @@ export default async function OverviewPage() {
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-6">
       <h1 className="text-xl font-semibold tracking-tight text-ink">
-        Bonjour {session.user.name ?? ""} 👋
+        Bonjour {actor.name ?? ""} 👋
       </h1>
       <p className="mt-1 text-sm text-ink-soft">Vue d'ensemble de ton activité.</p>
 

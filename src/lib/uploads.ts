@@ -19,5 +19,7 @@ export async function saveImageUpload(file: File): Promise<string | null> {
   await mkdir(dir, { recursive: true });
   const fileName = `${randomUUID()}.${ext}`;
   await writeFile(path.join(dir, fileName), Buffer.from(await file.arrayBuffer()));
-  return `/uploads/${fileName}`;
+  // Served by the route handler, not by Next's boot-time public/ snapshot —
+  // otherwise the image 404s until the next container restart.
+  return `/api/uploads/${fileName}`;
 }

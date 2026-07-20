@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   // Next 16 removed built-in ESLint-on-build, so no eslint key here.
   typescript: { ignoreBuildErrors: true },
 
+  // Logos saved before uploads moved behind the route handler still hold
+  // /uploads/... in the DB — keep those URLs working.
+  async rewrites() {
+    return [{ source: "/uploads/:path*", destination: "/api/uploads/:path*" }];
+  },
+
   async headers() {
     return [
       {

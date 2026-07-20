@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, getClientFor } from "@/lib/access";
 import { getOrCreateReport } from "@/lib/report";
 import { getReportData } from "@/lib/report-data";
 import { SPAN_CLASS } from "@/components/report/span";
@@ -32,8 +33,10 @@ export default async function ClientReportPage({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const client = await db.client.findUnique({ where: { id } });
-  if (!client || client.ownerId !== session.user.id) notFound();
+  const actor = await getActor();
+  if (!actor) redirect("/login");
+  const client = await getClientFor(actor, id, "view");
+  if (!client) notFound();
 
   const report = await getOrCreateReport(client.id);
   const widgets = report.widgets;

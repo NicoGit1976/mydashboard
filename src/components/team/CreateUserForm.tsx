@@ -18,13 +18,27 @@ export default function CreateUserForm() {
         <UserPlus size={16} className="text-brand" /> Inviter un utilisateur
       </p>
       <p className="mt-0.5 text-xs text-muted">
-        Chaque utilisateur ne voit que ses propres clients et rapports.
+        Un <strong className="font-medium text-ink-soft">membre</strong> ne voit que les clients
+        où on l&apos;invite. Un <strong className="font-medium text-ink-soft">admin</strong> gère
+        ses propres clients et choisit qui y accède.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-medium text-ink-soft">Email</label>
-          <input name="email" type="email" required className={inputCls} placeholder="ami@exemple.com" />
+          <label className="block text-xs font-medium text-ink-soft">Identifiant</label>
+          <input
+            name="username"
+            type="text"
+            required
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className={inputCls}
+            placeholder="prenom.nom"
+          />
+          <p className="mt-1 text-[11px] text-muted">
+            Sert à se connecter. Lettres, chiffres, point, tiret — pas d&apos;arobase.
+          </p>
         </div>
         <div>
           <label className="block text-xs font-medium text-ink-soft">
@@ -36,8 +50,9 @@ export default function CreateUserForm() {
 
       <label className="mt-3 block text-xs font-medium text-ink-soft">Rôle</label>
       <select name="role" defaultValue="MEMBER" className={inputCls + " max-w-56"}>
-        <option value="MEMBER">Membre — gère ses clients</option>
-        <option value="ADMIN">Admin — gère aussi l&apos;équipe</option>
+        <option value="MEMBER">Membre — travaille sur les clients où on l&apos;invite</option>
+        <option value="ADMIN">Admin — possède ses propres clients et choisit qui y accède</option>
+        <option value="SUPER_ADMIN">Super admin — voit tout, gère les comptes</option>
       </select>
 
       {state && !state.ok && (

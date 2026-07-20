@@ -11,12 +11,13 @@ import UserRowActions from "@/components/team/UserRowActions";
 export default async function TeamPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  if (session.user.role !== "ADMIN") redirect("/overview");
+  if (session.user.role !== "SUPER_ADMIN") redirect("/overview");
 
   const users = await db.user.findMany({
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
+      username: true,
       email: true,
       name: true,
       role: true,
@@ -49,14 +50,15 @@ export default async function TeamPage() {
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-xs font-bold text-brand">
-                  {initials(u.name ?? u.email)}
+                  {initials(u.name ?? u.username ?? "?")}
                 </div>
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink">
-                    {u.name ?? u.email}
-                    {u.role === "ADMIN" && (
+                    {u.name ?? u.username}
+                    {(u.role === "ADMIN" || u.role === "SUPER_ADMIN") && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand">
-                        <ShieldCheck size={10} /> Admin
+                        <ShieldCheck size={10} />
+                        {u.role === "SUPER_ADMIN" ? "Super admin" : "Admin"}
                       </span>
                     )}
                     {u.mustChangePassword && (
@@ -66,7 +68,7 @@ export default async function TeamPage() {
                     )}
                   </p>
                   <p className="truncate text-xs text-muted">
-                    {u.email} · {u._count.clients} client{u._count.clients > 1 ? "s" : ""}
+                    {u.username ?? u.email} · {u._count.clients} client{u._count.clients > 1 ? "s" : ""}
                   </p>
                 </div>
               </div>

@@ -122,7 +122,10 @@ export const WIDGET_PALETTE = [
 // block (not content:demo — that injects a fabricated analysis about the demo
 // hotel that must never appear in a real client's report unprompted).
 export const DEFAULT_REPORT_LAYOUT = [
-  "kpi:sessions", "kpi:visitors", "kpi:social", "kpi:gmb",
+  // Only metrics a connector can actually fill: no provider emits `social` or
+  // any gmb_* key, so seeding them made every new report show invented numbers
+  // that could never turn live. They stay in the library for manual use.
+  "kpi:sessions", "kpi:visitors", "kpi:pageviews", "kpi:bounce_rate",
   "line:traffic", "donut:channels", "bar:networks", "table:pages",
   "content", "illustration",
 ];

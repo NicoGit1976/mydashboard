@@ -11,10 +11,17 @@ datasource db {
 
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
+  // Login identifier. Nullable only so `db push` can add it to a populated
+  // table; the seed backfills it from `email` on first boot and the app treats
+  // it as required from then on.
+  username     String?  @unique
+  // Contact address, optional: it is no longer the credential.
+  email        String?  @unique
   name         String?
   passwordHash String
-  role         String   @default("MEMBER") // ADMIN | MEMBER
+  // SUPER_ADMIN sees everything · ADMIN owns their own clients and invites
+  // members onto them · MEMBER only sees clients they were invited to.
+  role         String   @default("MEMBER") // SUPER_ADMIN | ADMIN | MEMBER
   mustChangePassword Boolean @default(false) // force a password change on first login
   createdAt    DateTime @default(now())
   agencyName   String?
@@ -22,6 +29,7 @@ model User {
   footerNote   String?
   clients      Client[]
   connections  Connection[]
+  assignments  ClientAssignment[]
 }
 
 model Client {
@@ -35,6 +43,24 @@ model Client {
   createdAt  DateTime @default(now())
   reports    Report[]
   sources    ClientSource[]
+  // Members invited onto this client by its owner. Purely additive: ownerId is
+  // never rewritten, so revoking an invitation can't orphan a client.
+  assignments ClientAssignment[]
+}
+
+// "User X may work on client Y". A client with no assignments is private to
+// its owner — which is what makes an admin's own clients invisible to the
+// other admins without needing a visibility flag.
+model ClientAssignment {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, userId])
+  @@index([userId])
 }
 
 model Report {
@@ -86,6 +112,7 @@ model Connection {
   meta         Json? // non-secret provider config (e.g. matomo url)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  clientSources ClientSource[]
 
   @@unique([ownerId, provider])
 }
@@ -97,6 +124,11 @@ model ClientSource {
   provider   String // matomo | ga4 | meta | gmb | linkedin
   externalId String // GA4 property id, FB page id, Matomo site id, etc.
   label      String?
+  // Which connection this id belongs to. An externalId is only meaningful
+  // against the instance it came from (Matomo site "7" means nothing on
+  // another server), so the binding records it explicitly.
+  connectionId String?
+  connection   Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
 
   @@unique([clientId, provider])

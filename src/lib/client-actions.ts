@@ -2,16 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { saveImageUpload } from "@/lib/uploads";
+import { getActor, getClientFor, type Level } from "@/lib/access";
 
-async function ownsClient(clientId: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("unauthenticated");
-  const client = await db.client.findUnique({ where: { id: clientId } });
-  if (!client || client.ownerId !== session.user.id) return null;
-  return client;
+// Assignees may edit a client's content; only its owner (or a super admin) may
+// delete it or change who can see it.
+async function ownsClient(clientId: string, level: Level = "edit") {
+  const actor = await getActor();
+  if (!actor) throw new Error("unauthenticated");
+  return getClientFor(actor, clientId, level);
 }
 
 export async function updateClient(clientId: string, formData: FormData) {
@@ -38,7 +38,8 @@ export async function updateClient(clientId: string, formData: FormData) {
 }
 
 export async function deleteClient(clientId: string) {
-  if (!(await ownsClient(clientId))) return;
+  // "manage": an invited member can work on a client but never delete it.
+  if (!(await ownsClient(clientId, "manage"))) return;
   await db.client.delete({ where: { id: clientId } }); // cascades to reports + widgets
   revalidatePath("/clients");
   redirect("/clients");
