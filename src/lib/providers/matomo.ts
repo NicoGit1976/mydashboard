@@ -74,6 +74,14 @@ function isoDaysAgo(days: number): string {
 
 type MatomoSummary = Record<string, unknown>;
 
+type MatomoPageRow = {
+  label?: string;
+  url?: string;
+  nb_hits?: unknown;
+  avg_time_on_page?: unknown;
+  bounce_rate?: unknown;
+};
+
 export async function fetchMatomo(
   token: string,
   siteId: string,
@@ -87,11 +95,23 @@ export async function fetchMatomo(
   const prevRange = `${isoDaysAgo(56)},${isoDaysAgo(29)}`;
   const common = { idSite: siteId };
 
-  const [cur, prev, daily, referrers] = await Promise.all([
-    mfetch(base, token, { method: "API.get", period: "range", date: curRange, ...common }) as Promise<MatomoSummary>,
+  // Every call is individually guarded: one failing endpoint must degrade that
+  // section only, never discard the whole payload.
+  const [cur, prev, daily, referrers, pages] = await Promise.all([
+    mfetch(base, token, { method: "API.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     mfetch(base, token, { method: "API.get", period: "range", date: prevRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     mfetch(base, token, { method: "VisitsSummary.get", period: "day", date: "last28", ...common }).catch(() => null) as Promise<Record<string, MatomoSummary> | null>,
     mfetch(base, token, { method: "Referrers.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
+    // flat=1 flattens Matomo's page-tree into plain paths, matching the table.
+    mfetch(base, token, {
+      method: "Actions.getPageUrls",
+      period: "range",
+      date: curRange,
+      flat: "1",
+      filter_sort_column: "nb_hits",
+      filter_limit: "5",
+      ...common,
+    }).catch(() => null) as Promise<MatomoPageRow[] | null>,
   ]);
 
   const kpis: ProviderData["kpis"] = {};
@@ -102,13 +122,17 @@ export async function fetchMatomo(
     // instead of a fabricated 0 %.
     kpis[key] = prev ? { value: val, delta: pct(c, num(prev[curName])) } : { value: val };
   };
-  metric("sessions", "nb_visits");
-  metric("pageviews", "nb_pageviews");
-  metric("avg_duration", "avg_time_on_site");
-  metric("bounce_rate", "bounce_rate");
-  if (cur?.nb_uniq_visitors !== undefined) metric("visitors", "nb_uniq_visitors");
-  if (num(cur?.nb_conversions) > 0 || num(prev?.nb_conversions) > 0)
-    metric("conversions", "nb_conversions");
+  // No summary ⇒ emit no KPIs at all. Emitting zeros would overwrite the mock
+  // with fake "real" data, which is worse than showing nothing.
+  if (cur) {
+    metric("sessions", "nb_visits");
+    metric("pageviews", "nb_pageviews");
+    metric("avg_duration", "avg_time_on_site");
+    metric("bounce_rate", "bounce_rate");
+    if (cur.nb_uniq_visitors !== undefined) metric("visitors", "nb_uniq_visitors");
+    if (num(cur.nb_conversions) > 0 || num(prev?.nb_conversions) > 0)
+      metric("conversions", "nb_conversions");
+  }
 
   // Daily traffic (sessions + unique visitors per day).
   let traffic: ProviderData["traffic"];
@@ -147,5 +171,20 @@ export async function fetchMatomo(
     if (out.length) channels = out;
   }
 
-  return { kpis, traffic, channels };
+  // Most-viewed pages — without this the report keeps showing sample URLs next
+  // to real KPIs, which is worse than showing nothing.
+  let topPages: ProviderData["topPages"];
+  if (Array.isArray(pages) && pages.length) {
+    const rows = pages
+      .map((p) => ({
+        page: (p.label ?? p.url ?? "").trim() || "/",
+        views: Math.round(num(p.nb_hits)),
+        avgTime: Math.round(num(p.avg_time_on_page)),
+        bounce: Math.round(num(p.bounce_rate)),
+      }))
+      .filter((p) => p.views > 0);
+    if (rows.length) topPages = rows;
+  }
+
+  return { kpis, traffic, channels, topPages };
 }

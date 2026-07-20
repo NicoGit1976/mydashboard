@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getReportData } from "@/lib/report-data";
+import { getConnector } from "@/lib/connectors";
 import { initials } from "@/lib/initials";
 import { SPAN_CLASS } from "@/components/report/span";
 import WidgetRenderer from "@/components/report/WidgetRenderer";
@@ -91,6 +92,14 @@ export default async function SharedReportPage({
           </div>
         ))}
       </div>
+
+      {/* A public viewer has no way to know the report isn't live. Never let a
+          demo report pass for real data in front of a client. */}
+      <p className="mt-6 text-center text-xs text-muted">
+        {data.liveSources.length > 0
+          ? `Données en direct · ${data.liveSources.map((s) => getConnector(s)?.label ?? s).join(", ")}`
+          : "Données de démonstration — ce rapport n'est alimenté par aucune source."}
+      </p>
 
       <ReportFooter
         agencyName={client.owner.agencyName}

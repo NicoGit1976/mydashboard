@@ -7,6 +7,8 @@ export type ProviderData = {
   kpis: Record<string, { value: number; delta?: number }>;
   traffic?: { labels: string[]; sessions: number[]; users: number[] };
   channels?: { name: string; value: number }[];
+  // Most-viewed pages. avgTime in seconds, bounce in percent.
+  topPages?: { page: string; views: number; avgTime: number; bounce: number }[];
 };
 
 // One selectable account/property/page/org for the attribution picker.

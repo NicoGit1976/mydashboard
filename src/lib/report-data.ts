@@ -30,7 +30,11 @@ async function cachedFetch(
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
   const data = await fn();
-  cache.set(key, { at: Date.now(), data });
+  // An empty bundle means the provider produced nothing — don't pin a report to
+  // demo values for 10 minutes because of one bad round-trip.
+  if (Object.keys(data.kpis).length || data.traffic || data.channels || data.topPages) {
+    cache.set(key, { at: Date.now(), data });
+  }
   if (cache.size > 500) {
     for (const [k, v] of cache) if (Date.now() - v.at > CACHE_TTL_MS) cache.delete(k);
   }
@@ -109,12 +113,21 @@ export async function getReportData(client: Client, readOnly = false): Promise<R
           datasets.channels = d.channels;
           liveDatasets.push("channels");
         }
+        if (d.topPages) {
+          datasets.topPages = d.topPages;
+          liveDatasets.push("topPages");
+        }
 
-        if (Object.keys(d.kpis).length || d.traffic || d.channels) {
+        if (Object.keys(d.kpis).length || d.traffic || d.channels || d.topPages) {
           liveSources.push(s.provider);
         }
-      } catch {
-        // keep mock for this source
+      } catch (err) {
+        // Keep mock for this source — but never silently: a demo-looking report
+        // must leave a trace of why the live fetch failed.
+        console.error(
+          `[report-data] ${s.provider} live fetch failed (client=${client.id} externalId=${s.externalId}):`,
+          err,
+        );
       }
     }),
   );

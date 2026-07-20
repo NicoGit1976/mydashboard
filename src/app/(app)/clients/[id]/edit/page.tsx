@@ -232,11 +232,13 @@ export default async function EditClientPage({
                     placeholder="Libellé (optionnel)"
                     className="min-w-[120px] flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-ink outline-none transition-colors focus:border-brand"
                   />
+                  {/* One unambiguous label: this button belongs to the SOURCE
+                      row, not to the client/report forms above it. */}
                   <button
                     type="submit"
                     className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
                   >
-                    {binding ? "Mettre à jour" : "Enregistrer"}
+                    Enregistrer cette source
                   </button>
                   {/* Explicit state: is this source actually feeding the report? */}
                   <p
