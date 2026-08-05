@@ -12,6 +12,7 @@ import { listProviderAccounts } from "@/lib/provider-accounts";
 import { getConnector } from "@/lib/connectors";
 import DeleteClientButton from "@/components/DeleteClientButton";
 import AssigneesForm from "@/components/clients/AssigneesForm";
+import ShortLinksCard, { type ShortLinkRow } from "@/components/clients/ShortLinksCard";
 import { listAssignableUsers } from "@/lib/assignment-actions";
 import { initials } from "@/lib/initials";
 
@@ -31,6 +32,26 @@ export default async function EditClientPage({
   if (!actor) redirect("/login");
   const client = await getClientFor(actor, id, "view");
   if (!client) notFound();
+
+  const since = new Date(Date.now() - 28 * 86_400_000).toISOString().slice(0, 10);
+  const base = process.env.APP_URL ?? "https://tools.d-analytica.cloud";
+  const shortLinks: ShortLinkRow[] = (
+    await db.shortLink.findMany({
+      where: { clientId: id },
+      orderBy: { createdAt: "desc" },
+      include: { days: { where: { day: { gte: since } } } },
+    })
+  ).map((l) => ({
+    id: l.id,
+    code: l.code,
+    shortUrl: `${base}/l/${l.code}`,
+    originalUrl: l.originalUrl,
+    label: l.label,
+    channel: l.channel,
+    disabled: l.disabled,
+    clicks28: l.days.reduce((s, d) => s + d.clicks, 0),
+    uniques28: l.days.reduce((s, d) => s + d.uniques, 0),
+  }));
 
   const canManage = client.ownerId === actor.id || actor.role === "SUPER_ADMIN";
   const assignable = canManage ? await listAssignableUsers(id) : [];
@@ -173,6 +194,7 @@ export default async function EditClientPage({
         </button>
       </form>
 
+      {canManage && (
       <div className="mt-4 rounded-card border border-border/60 bg-surface p-6 shadow-soft">
         <p className="text-sm font-semibold text-ink">Sources de ce client</p>
         <p className="mb-3 mt-0.5 text-xs text-muted">
@@ -267,6 +289,10 @@ export default async function EditClientPage({
           </div>
         )}
       </div>
+
+      )}
+
+      <ShortLinksCard clientId={id} links={shortLinks} />
 
       {canManage && (
         <div className="mt-4 rounded-card border border-border/60 bg-surface p-6 shadow-soft">

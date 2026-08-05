@@ -13,6 +13,9 @@ export const authConfig = {
       // Exact/segment match so a future route like /shared isn't world-readable.
       const p = nextUrl.pathname;
       if (p === "/share" || p.startsWith("/share/")) return true;
+      // Short links: public redirects clicked from social posts — a login wall
+      // here would break every link ever shared.
+      if (p === "/l" || p.startsWith("/l/")) return true;
       const onLogin = nextUrl.pathname === "/login";
       if (onLogin) {
         return isLoggedIn

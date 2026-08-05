@@ -65,6 +65,13 @@ export function visibleClientsWhere(actor: Actor): Prisma.ClientWhereInput {
   };
 }
 
+// Clients the actor can MANAGE (owner or super admin) — drives the approval
+// queue: you approve posts only on clients whose access you control.
+export function managedClientsWhere(actor: Actor): Prisma.ClientWhereInput {
+  if (actor.role === "SUPER_ADMIN") return {};
+  return { ownerId: actor.id };
+}
+
 export function visibleReportsWhere(actor: Actor): Prisma.ReportWhereInput {
   if (actor.role === "SUPER_ADMIN") return {};
   return { client: visibleClientsWhere(actor) };
@@ -102,6 +109,20 @@ export async function getReportClientFor(
   if (!report) return null;
   const client = await getClientFor(actor, report.clientId, level);
   return client ? { report, client } : null;
+}
+
+export async function getPostClientFor(
+  actor: Actor,
+  postId: string,
+  level: Level = "edit",
+) {
+  const post = await db.post.findUnique({
+    where: { id: postId },
+    include: { targets: true },
+  });
+  if (!post) return null;
+  const client = await getClientFor(actor, post.clientId, level);
+  return client ? { post, client } : null;
 }
 
 export async function getWidgetClientFor(

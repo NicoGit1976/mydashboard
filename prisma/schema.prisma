@@ -30,6 +30,8 @@ model User {
   clients      Client[]
   connections  Connection[]
   assignments  ClientAssignment[]
+  posts        Post[]   @relation("PostAuthor")
+  approvals    Post[]   @relation("PostApprover")
 }
 
 model Client {
@@ -46,6 +48,8 @@ model Client {
   // Members invited onto this client by its owner. Purely additive: ownerId is
   // never rewritten, so revoking an invitation can't orphan a client.
   assignments ClientAssignment[]
+  posts       Post[]
+  shortLinks  ShortLink[]
 }
 
 // "User X may work on client Y". A client with no assignments is private to
@@ -113,8 +117,104 @@ model Connection {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   clientSources ClientSource[]
+  postTargets   PostTarget[]
 
   @@unique([ownerId, provider])
+}
+
+// ---- Social publishing ----
+// A post composed once, published to N targets. Candidate targets are DERIVED
+// (ClientSource + connections of assignees) — no destinations table. targetKeys
+// holds the composer's selection; PostTarget rows are only created at approval,
+// so the scheduler can never see a draft.
+model Post {
+  id           String    @id @default(cuid())
+  clientId     String
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  authorId     String?
+  author       User?     @relation("PostAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  body         String
+  media        Json?     // string[] of "/api/uploads/<uuid>.<ext>"
+  targetKeys   Json?     // string[] "connectionId:provider:externalId" — composer selection
+  scheduledAt  DateTime? // UTC; null = publish as soon as approved
+  // DRAFT | PENDING_APPROVAL | SCHEDULED | PUBLISHING | PUBLISHED | FAILED | CANCELLED
+  status       String    @default("DRAFT")
+  submittedAt  DateTime?
+  reviewNote   String?   // approval/refusal comment
+  approvedById String?
+  approvedBy   User?     @relation("PostApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  targets      PostTarget[]
+
+  @@index([clientId, scheduledAt]) // calendar
+  @@index([clientId, status])      // drafts/upcoming lists
+  @@index([status])                // approval queue
+}
+
+// Per-network fan-out. The (provider, externalId, label, connectionId) snapshot
+// is taken at approval — a later disconnect can't corrupt history. This IS the
+// scheduler's work queue; Post.status is a derived cache.
+model PostTarget {
+  id             String      @id @default(cuid())
+  postId         String
+  post           Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  provider       String      // linkedin | meta_fb | meta_ig | x | gmb
+  externalId     String      // pageId / member URN / "self" / GBP resource name
+  label          String      // "Profil LinkedIn — Nicolas" (snapshot)
+  connectionId   String?
+  connection     Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  // scheduled → running → published | failed | cancelled
+  status         String      @default("scheduled")
+  attempts       Int         @default(0)
+  nextAttemptAt  DateTime?
+  lockedAt       DateTime?   // set at claim; an orphaned lock means a crash
+  externalPostId String?
+  publishedUrl   String?
+  publishedAt    DateTime?
+  lastError      String?     // French, displayed verbatim
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([postId, provider, externalId])
+  @@index([status, nextAttemptAt]) // THE claim query
+}
+
+// ---- Short links ----
+// tools.d-analytica.cloud/l/<code>. targetUrl is stored FINAL (UTM already
+// applied) — the redirect handler only does lookup + counting.
+model ShortLink {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  targetUrl   String
+  originalUrl String
+  channel     String?  // linkedin | facebook | instagram | x | gmb | null
+  postId      String?  // plain string (no FK) — loose coupling
+  label       String?
+  createdById String
+  disabled    Boolean  @default(false) // kill switch: 410
+  createdAt   DateTime @default(now())
+  days        ShortLinkClickDay[]
+
+  @@index([clientId])
+  @@index([postId])
+}
+
+// Daily aggregates only — NO raw rows, NO IP/UA ever persisted.
+model ShortLinkClickDay {
+  id      String    @id @default(cuid())
+  linkId  String
+  link    ShortLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  day     String    // "YYYY-MM-DD" UTC
+  clicks  Int       @default(0)
+  uniques Int       @default(0)
+  bots    Int       @default(0)
+
+  @@unique([linkId, day])
+  @@index([day])
 }
 
 model ClientSource {

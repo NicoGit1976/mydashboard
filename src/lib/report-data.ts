@@ -7,6 +7,7 @@ import { fetchMeta } from "@/lib/providers/meta";
 import { fetchLinkedin } from "@/lib/providers/linkedin";
 import { fetchMatomo } from "@/lib/providers/matomo";
 import { fetchGsc } from "@/lib/providers/gsc";
+import { fetchShortlinkData } from "@/lib/providers/shortlink";
 import type { ProviderData } from "@/lib/providers/types";
 import type { SourceKey } from "@/lib/sources";
 
@@ -47,6 +48,7 @@ async function cachedFetch(
 const PROVIDER_BADGE: Record<string, SourceKey | undefined> = {
   matomo: "matomo",
   ga4: "ga4",
+  shortlink: "shortlink",
 };
 
 function applyKpis(
@@ -133,6 +135,18 @@ export async function getReportData(client: Client, readOnly = false): Promise<R
       }
     }),
   );
+
+  // First-party short-link clicks: no external API, no attribution needed —
+  // this is OUR data, and it works for networks whose stats APIs are locked.
+  try {
+    const sl = await fetchShortlinkData(client.id);
+    if (sl) {
+      applyKpis(kpis, sl.kpis, "shortlink", liveMetrics);
+      if (Object.keys(sl.kpis).length) liveSources.push("shortlink");
+    }
+  } catch (err) {
+    console.error(`[report-data] shortlink stats failed (client=${client.id}):`, err);
+  }
 
   return { kpis, datasets, liveSources, liveMetrics, liveDatasets };
 }

@@ -156,12 +156,24 @@ export default function ConnectorCard({
               </div>
             </form>
           ) : (
-            <button
-              onClick={() => setOpen(true)}
-              className="w-full rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-            >
-              Connecter
-            </button>
+            <div className="space-y-1.5">
+              <button
+                onClick={() => setOpen(true)}
+                className="w-full rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+              >
+                Connecter
+              </button>
+              {/* When an OAuth app IS configured, offer the one-click flow as
+                  the alternative — otherwise don't mention it at all. */}
+              {configured && (
+                <a
+                  href={`/api/connect/${def.key}`}
+                  className="block w-full rounded-lg border border-border px-3 py-2 text-center text-xs font-medium text-ink-soft transition-colors hover:bg-bg"
+                >
+                  ou se connecter en un clic (OAuth)
+                </a>
+              )}
+            </div>
           )
         ) : configured ? (
           <a

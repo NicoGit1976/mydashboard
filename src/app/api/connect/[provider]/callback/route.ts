@@ -65,6 +65,26 @@ export async function GET(
     }
     const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null;
 
+    // Capture the account identity NOW: LinkedIn posts are authored by a member
+    // URN, and there is no later opportunity to ask for it.
+    let meta: Record<string, string> | null = null;
+    let accountLabel: string | null = null;
+    if (provider === "linkedin") {
+      const ui = await fetch("https://api.linkedin.com/v2/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(8000),
+      }).catch(() => null);
+      if (ui?.ok) {
+        const who = (await ui.json().catch(() => ({}))) as { sub?: string; name?: string };
+        if (who.sub) {
+          meta = { memberUrn: `urn:li:person:${who.sub}` };
+          accountLabel = who.name ?? null;
+        }
+      }
+      if (!meta)
+        return NextResponse.redirect(new URL("/sources?error=identity", req.url));
+    }
+
     await db.connection.upsert({
       where: { ownerId_provider: { ownerId: session.user.id, provider } },
       update: {
@@ -74,6 +94,8 @@ export async function GET(
         // Only overwrite the refresh token when the provider returns one — an
         // absent refresh_token on reconnect must NOT wipe the stored one.
         ...(data.refresh_token ? { refreshToken: encrypt(data.refresh_token) } : {}),
+        ...(meta ? { meta } : {}),
+        ...(accountLabel ? { accountLabel } : {}),
         expiresAt,
       },
       create: {
@@ -83,6 +105,8 @@ export async function GET(
         status: "connected",
         accessToken: encrypt(accessToken),
         refreshToken: data.refresh_token ? encrypt(data.refresh_token) : null,
+        ...(meta ? { meta } : {}),
+        ...(accountLabel ? { accountLabel } : {}),
         expiresAt,
       },
     });

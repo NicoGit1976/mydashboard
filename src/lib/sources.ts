@@ -2,6 +2,7 @@
 // in Phase 3, the actual connector registry.
 export const SOURCES = {
   matomo: { label: "Matomo", color: "#3450A1" },
+  shortlink: { label: "Liens courts", color: "#0EA5A4" },
   ga4: { label: "GA4", color: "#E8710A" },
   facebook: { label: "Facebook", color: "#1877F2" },
   instagram: { label: "Instagram", color: "#E1306C" },

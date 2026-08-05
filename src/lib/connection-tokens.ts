@@ -76,6 +76,26 @@ export async function getValidToken(
   const conn = await db.connection.findUnique({
     where: { ownerId_provider: { ownerId, provider } },
   });
+  return resolveConnectionToken(conn, provider, readOnly);
+}
+
+// Scheduler entry point: resolve by connection id (a PostTarget snapshots its
+// connectionId). Never readOnly — publishing is allowed to refresh and to
+// flip a dead connection to error.
+export async function getValidTokenByConnection(
+  connectionId: string,
+): Promise<LiveToken | null> {
+  const conn = await db.connection.findUnique({ where: { id: connectionId } });
+  return conn ? resolveConnectionToken(conn, conn.provider, false) : null;
+}
+
+type ConnRow = NonNullable<Awaited<ReturnType<typeof db.connection.findUnique>>>;
+
+async function resolveConnectionToken(
+  conn: ConnRow | null,
+  provider: string,
+  readOnly: boolean,
+): Promise<LiveToken | null> {
   if (!conn?.accessToken) return null;
 
   let token: string;

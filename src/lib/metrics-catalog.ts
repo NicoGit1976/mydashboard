@@ -67,6 +67,9 @@ export const KPI_METRICS: Record<string, KpiMetric> = {
   gsc_impressions: { label: "Impressions Google", value: 96400, delta: 11.5, source: "gmb", spark: UP },
   gsc_ctr: { label: "CTR Google", value: 4, delta: 0.4, source: "gmb", spark: UP, format: "percent" },
   gsc_position: { label: "Position moyenne", value: 12, delta: 3.1, source: "gmb", spark: DOWN, invert: true },
+  // First-party: clicks measured on our own short links.
+  sl_clicks: { label: "Clics liens courts", value: 1240, delta: 14.2, source: "shortlink", spark: UP },
+  sl_uniques: { label: "Visiteurs (liens courts)", value: 980, delta: 11.6, source: "shortlink", spark: UP },
   social: { label: "Engagement social", value: 18640, delta: 23.7, source: "instagram", spark: UP },
 };
 
@@ -96,6 +99,8 @@ export const WIDGET_BLUEPRINTS: Record<string, Blueprint> = {
   "kpi:gsc_impressions": { type: "kpi", label: "KPI · Impressions Google", span: 3, config: { metric: "gsc_impressions" } },
   "kpi:gsc_ctr": { type: "kpi", label: "KPI · CTR Google", span: 3, config: { metric: "gsc_ctr" } },
   "kpi:gsc_position": { type: "kpi", label: "KPI · Position moyenne", span: 3, config: { metric: "gsc_position" } },
+  "kpi:sl_clicks": { type: "kpi", label: "KPI · Clics liens courts", span: 3, config: { metric: "sl_clicks" } },
+  "kpi:sl_uniques": { type: "kpi", label: "KPI · Visiteurs liens courts", span: 3, config: { metric: "sl_uniques" } },
   "kpi:social": { type: "kpi", label: "KPI · Engagement", span: 3, config: { metric: "social" } },
   "kpi:gmb": { type: "kpi", label: "KPI · Fiche Google", span: 3, config: { metric: "gmb_views" } },
   "kpi:gmb_searches": { type: "kpi", label: "KPI · Recherches Google", span: 3, config: { metric: "gmb_searches" } },
@@ -120,6 +125,7 @@ export const WIDGET_PALETTE = [
   "ai",
   "kpi:sessions", "kpi:visitors", "kpi:pageviews", "kpi:conversions",
   "kpi:gsc_clicks", "kpi:gsc_impressions", "kpi:gsc_ctr", "kpi:gsc_position",
+  "kpi:sl_clicks", "kpi:sl_uniques",
   "kpi:social", "kpi:gmb", "kpi:gmb_searches",
   "kpi:ig", "kpi:ig_reach", "kpi:fb_reach", "kpi:li", "kpi:li_impressions",
   "icon",

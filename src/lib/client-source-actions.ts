@@ -5,10 +5,16 @@ import { db } from "@/lib/db";
 import { getActor, getClientFor } from "@/lib/access";
 import { getConnector } from "@/lib/connectors";
 
-async function ownsClient(clientId: string) {
+// Publishable providers bind a client to a real account: choosing which page
+// feeds the report — and receives posts — is an OWNER decision. Analytics-only
+// providers stay at "edit" so an assignee can still wire up a Matomo site.
+const OWNER_ONLY = new Set(["meta", "gmb", "linkedin", "x"]);
+
+async function ownsClient(clientId: string, provider: string) {
   const actor = await getActor();
   if (!actor) return false;
-  return !!(await getClientFor(actor, clientId, "edit"));
+  const level = OWNER_ONLY.has(provider) ? "manage" : "edit";
+  return !!(await getClientFor(actor, clientId, level));
 }
 
 // Bind (or update) which external entity of a provider maps to this client.
@@ -18,7 +24,7 @@ export async function saveClientSource(
   provider: string,
   formData: FormData,
 ) {
-  if (!(await ownsClient(clientId))) return;
+  if (!(await ownsClient(clientId, provider))) return;
   if (!getConnector(provider)) return;
 
   const externalId = String(formData.get("externalId") ?? "").trim();
@@ -27,17 +33,25 @@ export async function saveClientSource(
   if (!externalId) {
     await db.clientSource.deleteMany({ where: { clientId, provider } });
   } else {
+    // Record WHICH connection this id belongs to: an external id is only
+    // meaningful against the instance it came from.
+    const client = await db.client.findUnique({ where: { id: clientId } });
+    const conn = client
+      ? await db.connection.findUnique({
+          where: { ownerId_provider: { ownerId: client.ownerId, provider } },
+        })
+      : null;
     await db.clientSource.upsert({
       where: { clientId_provider: { clientId, provider } },
-      update: { externalId, label },
-      create: { clientId, provider, externalId, label },
+      update: { externalId, label, connectionId: conn?.id ?? null },
+      create: { clientId, provider, externalId, label, connectionId: conn?.id ?? null },
     });
   }
   revalidatePath(`/clients/${clientId}/edit`);
 }
 
 export async function removeClientSource(clientId: string, provider: string) {
-  if (!(await ownsClient(clientId))) return;
+  if (!(await ownsClient(clientId, provider))) return;
   await db.clientSource.deleteMany({ where: { clientId, provider } });
   revalidatePath(`/clients/${clientId}/edit`);
 }
