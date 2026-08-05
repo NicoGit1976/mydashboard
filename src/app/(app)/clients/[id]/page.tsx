@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getActor, getClientFor } from "@/lib/access";
 import { getOrCreateReport } from "@/lib/report";
 import { getReportData } from "@/lib/report-data";
+import { fr } from "@/lib/date-range";
 import { SPAN_CLASS } from "@/components/report/span";
 import ReportHeader from "@/components/report/ReportHeader";
 import WidgetRenderer from "@/components/report/WidgetRenderer";
@@ -40,7 +41,7 @@ export default async function ClientReportPage({
 
   const report = await getOrCreateReport(client.id);
   const widgets = report.widgets;
-  const data = await getReportData(client);
+  const data = await getReportData(client, false, report);
   const shareLink = await db.shareLink.findFirst({ where: { reportId: report.id } });
   const owner = await db.user.findUnique({
     where: { id: session.user.id },
@@ -56,8 +57,8 @@ export default async function ClientReportPage({
           brandColor: client.brandColor,
           logoUrl: client.logoUrl,
         }}
-        period={report.periodLabel ?? "—"}
-        compare={report.compareLabel ?? ""}
+        period={data.range.label}
+        compare={`${fr(data.range.start)} – ${fr(data.range.end)}`}
         editMode={editMode}
         toggleHref={editMode ? `/clients/${id}` : `/clients/${id}?edit=1`}
         settingsHref={`/clients/${id}/edit`}

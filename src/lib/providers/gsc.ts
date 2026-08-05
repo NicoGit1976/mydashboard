@@ -1,4 +1,5 @@
 import type { AccountOption, ProviderData } from "@/lib/providers/types";
+import { bucketByGranularity, type DateRange } from "@/lib/date-range";
 
 // Google Search Console (Search Analytics API). Same service-account credential
 // as GA4 — only the scope differs — so connecting one connects both.
@@ -31,9 +32,7 @@ export async function listGscSites(token: string): Promise<AccountOption[]> {
     .map((s) => ({ id: s.siteUrl, label: s.siteUrl }));
 }
 
-function isoDaysAgo(days: number): string {
-  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
-}
+
 
 type Row = { keys?: string[]; clicks?: number; impressions?: number; ctr?: number; position?: number };
 
@@ -42,7 +41,11 @@ function pct(cur: number, prev: number): number {
   return Math.round(((cur - prev) / prev) * 1000) / 10;
 }
 
-export async function fetchGsc(token: string, siteUrl: string): Promise<ProviderData> {
+export async function fetchGsc(
+  token: string,
+  siteUrl: string,
+  range: DateRange,
+): Promise<ProviderData> {
   const site = encodeURIComponent(siteUrl);
   const url = `${API}/sites/${site}/searchAnalytics/query`;
 
@@ -53,11 +56,12 @@ export async function fetchGsc(token: string, siteUrl: string): Promise<Provider
       rows?: Row[];
     } | null>;
 
+  // The caller already shifted this range back for Search Console's ~2-day lag.
   const [cur, prev, byDate, byPage] = await Promise.all([
-    query(isoDaysAgo(31), isoDaysAgo(3), []),
-    query(isoDaysAgo(59), isoDaysAgo(32), []),
-    query(isoDaysAgo(31), isoDaysAgo(3), ["date"], 60),
-    query(isoDaysAgo(31), isoDaysAgo(3), ["page"], 5),
+    query(range.start, range.end, []),
+    query(range.prevStart, range.prevEnd, []),
+    query(range.start, range.end, ["date"], 500),
+    query(range.start, range.end, ["page"], 5),
   ]);
 
   const c = cur?.rows?.[0];
@@ -86,17 +90,11 @@ export async function fetchGsc(token: string, siteUrl: string): Promise<Provider
 
   let traffic: ProviderData["traffic"];
   if (byDate?.rows?.length) {
-    const labels: string[] = [];
-    const sessions: number[] = [];
-    const users: number[] = [];
-    for (const r of byDate.rows) {
-      const d = r.keys?.[0] ?? "";
-      if (!d) continue;
-      labels.push(`${d.slice(8, 10)}/${d.slice(5, 7)}`);
-      sessions.push(Math.round(r.clicks ?? 0));
-      users.push(Math.round(r.impressions ?? 0));
-    }
-    if (labels.length) traffic = { labels, sessions, users };
+    const rows = byDate.rows
+      .filter((r) => r.keys?.[0])
+      .map((r) => ({ date: r.keys![0], values: [Math.round(r.clicks ?? 0), Math.round(r.impressions ?? 0)] }));
+    const { labels, series } = bucketByGranularity(rows, range.granularity);
+    if (labels.length) traffic = { labels, sessions: series[0], users: series[1] };
   }
 
   let topPages: ProviderData["topPages"];

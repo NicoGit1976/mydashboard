@@ -10,6 +10,7 @@ import { fetchGsc } from "@/lib/providers/gsc";
 import { fetchShortlinkData } from "@/lib/providers/shortlink";
 import type { ProviderData } from "@/lib/providers/types";
 import type { SourceKey } from "@/lib/sources";
+import { resolveRange, type DateRange } from "@/lib/date-range";
 
 export type ReportData = {
   kpis: typeof KPI_METRICS;
@@ -17,6 +18,7 @@ export type ReportData = {
   liveSources: string[]; // providers that returned live data this render
   liveMetrics: string[]; // KPI metric ids actually filled by a live provider
   liveDatasets: string[]; // dataset keys (traffic/channels) filled live
+  range: DateRange; // the period actually queried — headers must state THIS
 };
 
 // ---------------------------------------------------------------------------
@@ -81,7 +83,21 @@ function withTimeout<T>(p: Promise<T>, ms = 10_000): Promise<T> {
 // then overrides with live data for every connected + attributed source. Any
 // provider error keeps that source's mock values, so the report never breaks.
 // readOnly = true for public /share pages: no owner-state writes, no refreshes.
-export async function getReportData(client: Client, readOnly = false): Promise<ReportData> {
+export type ReportPeriod = {
+  periodDays: number;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+};
+
+export async function getReportData(
+  client: Client,
+  readOnly = false,
+  period: ReportPeriod = { periodDays: 28, periodStart: null, periodEnd: null },
+): Promise<ReportData> {
+  const range = resolveRange(period);
+  // Search Console publishes ~2 days late: shift its window or the last days
+  // read as an artificial collapse.
+  const gscRange = resolveRange(period, 2);
   const kpis = structuredClone(KPI_METRICS);
   const datasets = structuredClone(DATASETS);
   const liveSources: string[] = [];
@@ -96,14 +112,16 @@ export async function getReportData(client: Client, readOnly = false): Promise<R
         const t = await getValidToken(client.ownerId, s.provider, readOnly);
         if (!t) return;
 
-        const key = `${client.ownerId}:${s.provider}:${s.externalId}`;
+        // The period is part of the cache identity — otherwise switching to
+        // "6 mois" would serve the 28-day numbers for 10 minutes.
+        const key = `${client.ownerId}:${s.provider}:${s.externalId}:${range.start}:${range.end}`;
         const d = await withTimeout(
           cachedFetch(key, () => {
-            if (s.provider === "ga4") return fetchGa4(t.token, s.externalId);
-            if (s.provider === "meta") return fetchMeta(t.token, s.externalId);
+            if (s.provider === "ga4") return fetchGa4(t.token, s.externalId, range);
+            if (s.provider === "meta") return fetchMeta(t.token, s.externalId, range);
             if (s.provider === "linkedin") return fetchLinkedin(t.token, s.externalId);
-            if (s.provider === "matomo") return fetchMatomo(t.token, s.externalId, t.meta);
-            if (s.provider === "gsc") return fetchGsc(t.token, s.externalId);
+            if (s.provider === "matomo") return fetchMatomo(t.token, s.externalId, t.meta, range);
+            if (s.provider === "gsc") return fetchGsc(t.token, s.externalId, gscRange);
             return Promise.resolve({ kpis: {} } as ProviderData);
           }),
         );
@@ -139,7 +157,7 @@ export async function getReportData(client: Client, readOnly = false): Promise<R
   // First-party short-link clicks: no external API, no attribution needed —
   // this is OUR data, and it works for networks whose stats APIs are locked.
   try {
-    const sl = await fetchShortlinkData(client.id);
+    const sl = await fetchShortlinkData(client.id, range);
     if (sl) {
       applyKpis(kpis, sl.kpis, "shortlink", liveMetrics);
       if (Object.keys(sl.kpis).length) liveSources.push("shortlink");
@@ -148,5 +166,5 @@ export async function getReportData(client: Client, readOnly = false): Promise<R
     console.error(`[report-data] shortlink stats failed (client=${client.id}):`, err);
   }
 
-  return { kpis, datasets, liveSources, liveMetrics, liveDatasets };
+  return { kpis, datasets, liveSources, liveMetrics, liveDatasets, range };
 }

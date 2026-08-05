@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getReportData } from "@/lib/report-data";
+import { fr } from "@/lib/date-range";
 import { getConnector } from "@/lib/connectors";
 import { initials } from "@/lib/initials";
 import { SPAN_CLASS } from "@/components/report/span";
@@ -41,7 +42,7 @@ export default async function SharedReportPage({
   const report = link.report;
   const client = report.client;
   // readOnly: public viewers must never mutate the owner's connection state.
-  const data = await getReportData(client, true);
+  const data = await getReportData(client, true, report);
 
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-6">
@@ -75,8 +76,10 @@ export default async function SharedReportPage({
               )}
             </div>
             <p className="mt-0.5 text-sm text-ink-soft">
-              {report.title} · {report.periodLabel ?? "—"}{" "}
-              {report.compareLabel && <span className="text-muted">· {report.compareLabel}</span>}
+              {report.title} · {data.range.label}{" "}
+              <span className="text-muted">
+                ({fr(data.range.start)} – {fr(data.range.end)})
+              </span>
             </p>
           </div>
         </div>

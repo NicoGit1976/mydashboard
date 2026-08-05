@@ -10,6 +10,7 @@ import { updateReportMeta } from "@/lib/report-actions";
 import { getOrCreateReport } from "@/lib/report";
 import { listProviderAccounts } from "@/lib/provider-accounts";
 import { getConnector } from "@/lib/connectors";
+import { PERIOD_PRESETS } from "@/lib/date-range";
 import DeleteClientButton from "@/components/DeleteClientButton";
 import AssigneesForm from "@/components/clients/AssigneesForm";
 import ShortLinksCard, { type ShortLinkRow } from "@/components/clients/ShortLinksCard";
@@ -166,6 +167,37 @@ export default async function EditClientPage({
         </p>
         <label className="block text-xs font-medium text-ink-soft">Titre</label>
         <input name="title" defaultValue={report.title} className={inputCls} />
+
+        <label className="mt-3 block text-xs font-medium text-ink-soft">Période analysée</label>
+        <select name="periodDays" defaultValue={String(report.periodDays)} className={inputCls}>
+          {PERIOD_PRESETS.map((p) => (
+            <option key={p.days} value={p.days}>{p.label}</option>
+          ))}
+          <option value="0">Dates précises…</option>
+        </select>
+        <p className="mt-1 text-[11px] text-muted">
+          C&apos;est cette période qui est réellement interrogée chez chaque source.
+        </p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-[11px] font-medium text-ink-soft">Du (si dates précises)</label>
+            <input
+              type="date"
+              name="periodStart"
+              defaultValue={report.periodStart ? report.periodStart.toISOString().slice(0, 10) : ""}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-ink-soft">Au</label>
+            <input
+              type="date"
+              name="periodEnd"
+              defaultValue={report.periodEnd ? report.periodEnd.toISOString().slice(0, 10) : ""}
+              className={inputCls}
+            />
+          </div>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-medium text-ink-soft">Période</label>

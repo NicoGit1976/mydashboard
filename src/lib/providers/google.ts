@@ -1,4 +1,5 @@
 import type { AccountOption, ProviderData } from "@/lib/providers/types";
+import type { DateRange } from "@/lib/date-range";
 
 const ADMIN = "https://analyticsadmin.googleapis.com/v1beta";
 const DATA = "https://analyticsdata.googleapis.com/v1beta";
@@ -51,25 +52,29 @@ type GaRow = {
   metricValues?: { value: string }[];
 };
 
-export async function fetchGa4(token: string, property: string): Promise<ProviderData> {
+export async function fetchGa4(
+  token: string,
+  property: string,
+  range: DateRange,
+): Promise<ProviderData> {
   const prop = property.startsWith("properties/") ? property : `properties/${property}`;
   const url = `${DATA}/${prop}:runReport`;
 
   const totalsReq = {
     dateRanges: [
-      { startDate: "28daysAgo", endDate: "yesterday" },
-      { startDate: "56daysAgo", endDate: "29daysAgo" },
+      { startDate: range.start, endDate: range.end },
+      { startDate: range.prevStart, endDate: range.prevEnd },
     ],
     metrics: METRIC_MAP.map((m) => ({ name: m.ga })),
   };
   const trafficReq = {
-    dateRanges: [{ startDate: "28daysAgo", endDate: "yesterday" }],
+    dateRanges: [{ startDate: range.start, endDate: range.end }],
     dimensions: [{ name: "date" }],
     metrics: [{ name: "sessions" }, { name: "totalUsers" }],
     orderBys: [{ dimension: { dimensionName: "date" } }],
   };
   const channelsReq = {
-    dateRanges: [{ startDate: "28daysAgo", endDate: "yesterday" }],
+    dateRanges: [{ startDate: range.start, endDate: range.end }],
     dimensions: [{ name: "sessionDefaultChannelGroup" }],
     metrics: [{ name: "sessions" }],
     orderBys: [{ metric: { metricName: "sessions" }, desc: true }],

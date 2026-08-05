@@ -74,6 +74,11 @@ model Report {
   title        String   @default("Rapport de performance")
   periodLabel  String?
   compareLabel String?
+  // THE reporting period. Providers are queried on these dates — the labels
+  // above are cosmetic and must never be the source of truth again.
+  periodDays   Int       @default(28) // preset length; ignored when start+end set
+  periodStart  DateTime? // custom range (inclusive)
+  periodEnd    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   widgets      Widget[]

@@ -1,4 +1,17 @@
 import type { AccountOption, ProviderData } from "@/lib/providers/types";
+import type { DateRange } from "@/lib/date-range";
+
+// Graph's `days_28` is a fixed preset: for any other period we must ask for
+// daily values over since/until and sum them ourselves.
+function applyRange(u: URL, range: DateRange): void {
+  if (range.days === 28) {
+    u.searchParams.set("period", "days_28");
+    return;
+  }
+  u.searchParams.set("period", "day");
+  u.searchParams.set("since", String(Math.floor(Date.parse(range.start) / 1000)));
+  u.searchParams.set("until", String(Math.floor(Date.parse(range.end) / 1000) + 86_400));
+}
 
 const G = "https://graph.facebook.com/v21.0";
 const TIMEOUT = 8000;
@@ -61,9 +74,14 @@ export async function listMetaPages(userToken: string): Promise<AccountOption[]>
   return out;
 }
 
-function lastValue(m: { values?: { value: number }[] }): number {
+// With the `days_28` preset Graph returns ONE rolling value (take the last);
+// with period=day over since/until it returns one row per day, which must be
+// SUMMED. Taking the last value there would report a single day as the total.
+function periodValue(m: { values?: { value: number }[] }, range: DateRange): number {
   const vals = m.values ?? [];
-  return Number(vals[vals.length - 1]?.value ?? 0);
+  if (vals.length === 0) return 0;
+  if (range.days === 28) return Number(vals[vals.length - 1]?.value ?? 0);
+  return vals.reduce((sum, v) => sum + Number(v?.value ?? 0), 0);
 }
 
 // Facebook page + linked Instagram insights for the attributed page id.
@@ -71,7 +89,11 @@ function lastValue(m: { values?: { value: number }[] }): number {
 // truncation) and reads its page-scoped access token. Defensive: every metric
 // is best-effort. delta is omitted (Meta has no cheap prior-period compare) so
 // the KPI card shows "tendance n/d" rather than a fake 0 %.
-export async function fetchMeta(userToken: string, pageId: string): Promise<ProviderData> {
+export async function fetchMeta(
+  userToken: string,
+  pageId: string,
+  range: DateRange,
+): Promise<ProviderData> {
   const kpis: ProviderData["kpis"] = {};
 
   const pu = new URL(`${G}/${pageId}`);
@@ -88,14 +110,14 @@ export async function fetchMeta(userToken: string, pageId: string): Promise<Prov
   try {
     const u = new URL(`${G}/${page.id}/insights`);
     u.searchParams.set("metric", "page_impressions_unique,page_post_engagements");
-    u.searchParams.set("period", "days_28");
+    applyRange(u, range);
     u.searchParams.set("access_token", pageToken);
     const res = await gget(u);
     if (res.ok) {
       const d = (await res.json()) as { data?: { name: string; values?: { value: number }[] }[] };
       for (const m of d.data ?? []) {
-        if (m.name === "page_impressions_unique") kpis.fb_reach = { value: lastValue(m) };
-        if (m.name === "page_post_engagements") kpis.fb_engagement = { value: lastValue(m) };
+        if (m.name === "page_impressions_unique") kpis.fb_reach = { value: periodValue(m, range) };
+        if (m.name === "page_post_engagements") kpis.fb_engagement = { value: periodValue(m, range) };
       }
     }
   } catch {
@@ -120,13 +142,13 @@ export async function fetchMeta(userToken: string, pageId: string): Promise<Prov
     try {
       const u = new URL(`${G}/${ig}/insights`);
       u.searchParams.set("metric", "reach");
-      u.searchParams.set("period", "days_28");
+      applyRange(u, range);
       u.searchParams.set("access_token", pageToken);
       const res = await gget(u);
       if (res.ok) {
         const d = (await res.json()) as { data?: { name: string; values?: { value: number }[] }[] };
         for (const m of d.data ?? []) {
-          if (m.name === "reach") kpis.ig_reach = { value: lastValue(m) };
+          if (m.name === "reach") kpis.ig_reach = { value: periodValue(m, range) };
         }
       }
     } catch {

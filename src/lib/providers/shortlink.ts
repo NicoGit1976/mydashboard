@@ -1,15 +1,15 @@
 import { db } from "@/lib/db";
 import type { ProviderData } from "@/lib/providers/types";
+import type { DateRange } from "@/lib/date-range";
 
 // First-party "provider": short-link clicks measured on our own domain.
 // No external API, no token, no quota — and it is the ONLY performance signal
 // available for networks whose stats APIs are locked behind approvals.
 
-function isoDaysAgo(days: number): string {
-  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
-}
-
-export async function fetchShortlinkData(clientId: string): Promise<ProviderData | null> {
+export async function fetchShortlinkData(
+  clientId: string,
+  range: DateRange,
+): Promise<ProviderData | null> {
   const links = await db.shortLink.findMany({
     where: { clientId },
     select: { id: true },
@@ -19,11 +19,8 @@ export async function fetchShortlinkData(clientId: string): Promise<ProviderData
   if (links.length === 0) return null;
 
   const ids = links.map((l) => l.id);
-  const curFrom = isoDaysAgo(28);
-  const prevFrom = isoDaysAgo(56);
-
   const days = await db.shortLinkClickDay.findMany({
-    where: { linkId: { in: ids }, day: { gte: prevFrom } },
+    where: { linkId: { in: ids }, day: { gte: range.prevStart, lte: range.end } },
     select: { day: true, clicks: true, uniques: true },
   });
 
@@ -33,7 +30,7 @@ export async function fetchShortlinkData(clientId: string): Promise<ProviderData
   let prevUniques = 0;
   let prevDays = 0;
   for (const d of days) {
-    if (d.day >= curFrom) {
+    if (d.day >= range.start) {
       clicks += d.clicks;
       uniques += d.uniques;
     } else {

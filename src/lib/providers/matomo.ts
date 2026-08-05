@@ -1,4 +1,5 @@
 import type { AccountOption, ProviderData } from "@/lib/providers/types";
+import { bucketByGranularity, type DateRange } from "@/lib/date-range";
 
 // Matomo Reporting API. Token-based (no OAuth app needed) — the fastest way to
 // real data. token_auth is POSTed (Matomo 4+ recommendation), never in the URL.
@@ -67,10 +68,7 @@ function pct(cur: number, prev: number): number {
   return Math.round(((cur - prev) / prev) * 1000) / 10;
 }
 
-function isoDaysAgo(days: number): string {
-  const d = new Date(Date.now() - days * 86_400_000);
-  return d.toISOString().slice(0, 10);
-}
+
 
 type MatomoSummary = Record<string, unknown>;
 
@@ -86,13 +84,14 @@ export async function fetchMatomo(
   token: string,
   siteId: string,
   meta: Record<string, unknown>,
+  range: DateRange,
 ): Promise<ProviderData> {
   const base = baseUrl(meta);
   if (!base) return { kpis: {} };
 
-  // Current = last 28 full days, previous = the 28 days before that.
-  const curRange = `${isoDaysAgo(28)},${isoDaysAgo(1)}`;
-  const prevRange = `${isoDaysAgo(56)},${isoDaysAgo(29)}`;
+  // The report's real period, and the same-length window before it.
+  const curRange = `${range.start},${range.end}`;
+  const prevRange = `${range.prevStart},${range.prevEnd}`;
   const common = { idSite: siteId };
 
   // Every call is individually guarded: one failing endpoint must degrade that
@@ -100,7 +99,7 @@ export async function fetchMatomo(
   const [cur, prev, daily, referrers, pages] = await Promise.all([
     mfetch(base, token, { method: "API.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     mfetch(base, token, { method: "API.get", period: "range", date: prevRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
-    mfetch(base, token, { method: "VisitsSummary.get", period: "day", date: "last28", ...common }).catch(() => null) as Promise<Record<string, MatomoSummary> | null>,
+    mfetch(base, token, { method: "VisitsSummary.get", period: "day", date: curRange, ...common }).catch(() => null) as Promise<Record<string, MatomoSummary> | null>,
     mfetch(base, token, { method: "Referrers.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     // flat=1 flattens Matomo's page-tree into plain paths, matching the table.
     mfetch(base, token, {
@@ -137,16 +136,14 @@ export async function fetchMatomo(
   // Daily traffic (sessions + unique visitors per day).
   let traffic: ProviderData["traffic"];
   if (daily && typeof daily === "object") {
-    const labels: string[] = [];
-    const sessions: number[] = [];
-    const users: number[] = [];
-    for (const [date, row] of Object.entries(daily)) {
-      // date = YYYY-MM-DD
-      labels.push(`${date.slice(8, 10)}/${date.slice(5, 7)}`);
-      sessions.push(num((row as MatomoSummary)?.nb_visits));
-      users.push(num((row as MatomoSummary)?.nb_uniq_visitors));
-    }
-    if (labels.length) traffic = { labels, sessions, users };
+    // Matomo returns one row per day; bucket them so a 6-month curve shows
+    // monthly points instead of 180 unreadable ones.
+    const rows = Object.entries(daily).map(([date, row]) => ({
+      date,
+      values: [num((row as MatomoSummary)?.nb_visits), num((row as MatomoSummary)?.nb_uniq_visitors)],
+    }));
+    const { labels, series } = bucketByGranularity(rows, range.granularity);
+    if (labels.length) traffic = { labels, sessions: series[0], users: series[1] };
   }
 
   // Acquisition channels (absolute visit counts).
