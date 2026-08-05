@@ -63,9 +63,11 @@ export default async function SourcesPage({
                 pasteSteps: c.pasteSteps,
                 appOnly: c.appOnly,
               }}
-              // "Configured" now means: connectable by SOME route — an OAuth app
-              // in the env, or a credential the operator can paste.
-              configured={isConfigured(c) || (c.tokenFields?.length ?? 0) > 0}
+              // Strictly "an OAuth app is configured in the env": the card uses
+              // this to decide whether to offer the one-click flow. Conflating
+              // it with "pasteable" offered OAuth for apps that don't exist,
+              // which dead-ends on ?error=notconfigured.
+              configured={isConfigured(c)}
               connection={conn ? { status: conn.status, url: meta?.url ?? null } : null}
             />
           );

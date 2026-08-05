@@ -5,6 +5,13 @@ import { getConnector } from "@/lib/connectors";
 import { encrypt } from "@/lib/crypto";
 import { exchangeLongLivedToken } from "@/lib/providers/meta";
 
+// Redirects must be built on the PUBLIC url: behind Traefik the request
+// host is the container's own (0.0.0.0:3000), which the browser can't reach.
+const PUBLIC_BASE = process.env.APP_URL ?? "https://tools.d-analytica.cloud";
+function appUrl(path: string): string {
+  return new URL(path, PUBLIC_BASE).toString();
+}
+
 // Generic OAuth callback — exchanges the code for tokens (standard OAuth2
 // authorization-code grant) and stores them encrypted.
 export async function GET(
@@ -13,21 +20,21 @@ export async function GET(
 ) {
   const { provider } = await params;
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.redirect(new URL("/login", req.url));
+  if (!session?.user?.id) return NextResponse.redirect(appUrl("/login"));
 
   const def = getConnector(provider);
-  if (!def?.oauth) return NextResponse.redirect(new URL("/sources?error=unknown", req.url));
+  if (!def?.oauth) return NextResponse.redirect(appUrl("/sources?error=unknown"));
 
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const cookieState = req.cookies.get(`oauth_state_${provider}`)?.value;
   if (!code || !state || state !== cookieState) {
-    return NextResponse.redirect(new URL(`/sources?error=state&p=${provider}`, req.url));
+    return NextResponse.redirect(appUrl(`/sources?error=state&p=${provider}`));
   }
 
-  const appUrl = process.env.APP_URL ?? url.origin;
-  const redirectUri = `${appUrl}/api/connect/${provider}/callback`;
+  // Must match the redirect_uri sent at authorize time, byte for byte.
+  const redirectUri = `${PUBLIC_BASE}/api/connect/${provider}/callback`;
 
   try {
     const res = await fetch(def.oauth.tokenUrl, {
@@ -50,7 +57,7 @@ export async function GET(
       expires_in?: number;
     };
     if (!res.ok || !data.access_token) {
-      return NextResponse.redirect(new URL(`/sources?error=token&p=${provider}`, req.url));
+      return NextResponse.redirect(appUrl(`/sources?error=token&p=${provider}`));
     }
 
     let accessToken = data.access_token;
@@ -82,7 +89,7 @@ export async function GET(
         }
       }
       if (!meta)
-        return NextResponse.redirect(new URL("/sources?error=identity", req.url));
+        return NextResponse.redirect(appUrl("/sources?error=identity"));
     }
 
     await db.connection.upsert({
@@ -111,10 +118,10 @@ export async function GET(
       },
     });
 
-    const redirect = NextResponse.redirect(new URL(`/sources?connected=${provider}`, req.url));
+    const redirect = NextResponse.redirect(appUrl(`/sources?connected=${provider}`));
     redirect.cookies.delete(`oauth_state_${provider}`);
     return redirect;
   } catch {
-    return NextResponse.redirect(new URL(`/sources?error=exchange&p=${provider}`, req.url));
+    return NextResponse.redirect(appUrl(`/sources?error=exchange&p=${provider}`));
   }
 }

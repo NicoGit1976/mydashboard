@@ -188,7 +188,11 @@ export const CONNECTORS: ConnectorDef[] = [
     color: "#34A853",
     authType: "oauth",
     difficulty: "hard",
-    description: "Fiche Google (vues, recherches, actions). Accès API à demander à Google.",
+    description: "Fiche Google (vues, recherches, actions).",
+    appOnly:
+      "Seule source qui ne peut pas être connectée par collage : Google exige une demande " +
+      "d'accès à l'API Business Profile (formulaire gratuit, quelques jours) et n'accepte pas " +
+      "les comptes de service. À faire une fois, puis la connexion en un clic s'activera.",
     oauth: {
       authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
       tokenUrl: "https://oauth2.googleapis.com/token",

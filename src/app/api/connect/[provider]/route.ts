@@ -3,6 +3,13 @@ import { randomBytes } from "crypto";
 import { auth } from "@/auth";
 import { getConnector, isConfigured } from "@/lib/connectors";
 
+// Redirects must be built on the PUBLIC url: behind Traefik the request
+// host is the container's own (0.0.0.0:3000), which the browser can't reach.
+const PUBLIC_BASE = process.env.APP_URL ?? "https://tools.d-analytica.cloud";
+function appUrl(path: string): string {
+  return new URL(path, PUBLIC_BASE).toString();
+}
+
 // Generic OAuth start — builds the provider's authorize URL from the registry.
 export async function GET(
   req: NextRequest,
@@ -10,15 +17,14 @@ export async function GET(
 ) {
   const { provider } = await params;
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.redirect(new URL("/login", req.url));
+  if (!session?.user?.id) return NextResponse.redirect(appUrl("/login"));
 
   const def = getConnector(provider);
-  if (!def?.oauth) return NextResponse.redirect(new URL("/sources?error=unknown", req.url));
+  if (!def?.oauth) return NextResponse.redirect(appUrl("/sources?error=unknown"));
   if (!isConfigured(def))
-    return NextResponse.redirect(new URL(`/sources?error=notconfigured&p=${provider}`, req.url));
+    return NextResponse.redirect(appUrl(`/sources?error=notconfigured&p=${provider}`));
 
-  const appUrl = process.env.APP_URL ?? new URL(req.url).origin;
-  const redirectUri = `${appUrl}/api/connect/${provider}/callback`;
+  const redirectUri = `${PUBLIC_BASE}/api/connect/${provider}/callback`;
   const state = randomBytes(16).toString("hex");
 
   const authUrl = new URL(def.oauth.authUrl);

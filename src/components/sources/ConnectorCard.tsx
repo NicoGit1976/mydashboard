@@ -207,13 +207,25 @@ export default function ConnectorCard({
           >
             Connecter
           </a>
+        ) : def.appOnly ? (
+          <div className="rounded-lg border border-dashed border-border bg-bg px-3 py-2.5">
+            <p className="text-[11px] leading-relaxed text-ink-soft">{def.appOnly}</p>
+            <a
+              href="https://developers.google.com/my-business/content/prereqs"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"
+            >
+              Faire la demande d&apos;accès <ExternalLink size={10} />
+            </a>
+          </div>
         ) : (
           <button
             disabled
-            title="Ajoute les identifiants OAuth de ce fournisseur dans .env"
+            title="Ce connecteur n'a ni app OAuth configurée ni identifiants collables"
             className="w-full cursor-not-allowed rounded-lg border border-dashed border-border bg-bg px-3 py-2 text-sm font-medium text-muted"
           >
-            À configurer (OAuth)
+            Indisponible
           </button>
         )}
       </div>
