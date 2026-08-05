@@ -177,6 +177,10 @@ export default async function EditClientPage({
         </select>
         <p className="mt-1 text-[11px] text-muted">
           C&apos;est cette période qui est réellement interrogée chez chaque source.
+          {report.periodDays !== 0 && (
+            <> Les deux dates ci-dessous sont <strong className="font-medium text-ink-soft">ignorées</strong>{" "}
+            tant que tu n&apos;as pas choisi « Dates précises… ».</>
+          )}
         </p>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <div>

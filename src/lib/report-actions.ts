@@ -27,9 +27,10 @@ export async function updateReportMeta(
   };
   let periodStart = parseDate(formData.get("periodStart"));
   let periodEnd = parseDate(formData.get("periodEnd"));
-  // Custom dates only count when BOTH are present and ordered; otherwise the
-  // preset wins and a half-filled range can't silently break the report.
-  if (!periodStart || !periodEnd || periodStart > periodEnd) {
+  // The dropdown is the single source of truth: custom dates apply ONLY when
+  // "Dates précises…" (0) is chosen. Otherwise leftover values in those fields
+  // silently overrode the preset — you picked "6 mois" and got something else.
+  if (periodDays !== 0 || !periodStart || !periodEnd || periodStart > periodEnd) {
     periodStart = null;
     periodEnd = null;
   }

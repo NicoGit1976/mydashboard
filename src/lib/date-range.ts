@@ -57,7 +57,9 @@ export function resolveRange(
   let end: string;
   let label: string;
 
-  if (report.periodStart && report.periodEnd) {
+  // periodDays === 0 means "Dates précises…"; any other value means the preset
+  // wins, whatever is stored in the date columns.
+  if (report.periodDays === 0 && report.periodStart && report.periodEnd) {
     start = iso(report.periodStart);
     end = iso(report.periodEnd);
     label = `du ${fr(start)} au ${fr(end)}`;
