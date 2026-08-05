@@ -60,6 +60,7 @@ export default async function SourcesPage({
                 description: c.description,
                 tokenFields: c.tokenFields ?? [],
                 pasteHelp: c.pasteHelp,
+                pasteSteps: c.pasteSteps,
                 appOnly: c.appOnly,
               }}
               // "Configured" now means: connectable by SOME route — an OAuth app

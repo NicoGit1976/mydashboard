@@ -33,6 +33,9 @@ export type ConnectorDef = {
   credType?: "token" | "service_account";
   // Shown above the paste form. Where to get the credential, in plain French.
   pasteHelp?: string;
+  // Numbered, clickable steps — nobody should have to hunt through a provider's
+  // console to find the one page that matters.
+  pasteSteps?: { label: string; url?: string }[];
   // Set when the provider CANNOT be connected without a reviewed app. Renders
   // as an honest "unavailable" state instead of a button that leads nowhere.
   appOnly?: string;
@@ -60,10 +63,23 @@ export const CONNECTORS: ConnectorDef[] = [
     description: "Audience & trafic web via l'API GA4 Data.",
     credType: "service_account",
     pasteHelp:
-      "1. console.cloud.google.com > IAM > Comptes de service > créer > Clés > Ajouter une clé > JSON. " +
-      "2. Ouvre le fichier téléchargé, copie TOUT son contenu, colle-le ci-dessous. " +
-      "3. Dans GA4 : Admin > Gestion des accès > ajoute l'adresse du compte de service en Lecteur. " +
-      "Aucune app OAuth à créer, aucune expiration.",
+      "Un compte de service Google : aucune app OAuth à créer, aucune expiration. " +
+      "La même clé servira aussi à Search Console.",
+    pasteSteps: [
+      {
+        label: "Activer l'API Analytics Data (bouton « Activer »)",
+        url: "https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com",
+      },
+      {
+        label: "Créer un compte de service, puis onglet Clés > Ajouter une clé > JSON",
+        url: "https://console.cloud.google.com/iam-admin/serviceaccounts",
+      },
+      { label: "Ouvrir le fichier téléchargé, tout copier, coller ci-dessous" },
+      {
+        label: "Dans GA4 : Admin > Gestion des accès > ajouter l'adresse du compte de service en Lecteur",
+        url: "https://analytics.google.com/analytics/web/",
+      },
+    ],
     tokenFields: [
       {
         name: "token",
@@ -91,10 +107,18 @@ export const CONNECTORS: ConnectorDef[] = [
     difficulty: "easy",
     description: "Requêtes, clics, impressions et position moyenne dans Google.",
     credType: "service_account",
-    pasteHelp:
-      "Le MÊME fichier JSON que pour GA4 — colle-le tel quel. Ajoute ensuite l'adresse du " +
-      "compte de service comme utilisateur de la propriété dans Search Console " +
-      "(Paramètres > Utilisateurs et autorisations).",
+    pasteHelp: "Le MÊME fichier JSON que pour GA4 — colle-le tel quel.",
+    pasteSteps: [
+      {
+        label: "Activer l'API Search Console (bouton « Activer »)",
+        url: "https://console.cloud.google.com/apis/library/searchconsole.googleapis.com",
+      },
+      { label: "Coller le même fichier JSON que pour GA4" },
+      {
+        label: "Ajouter l'adresse du compte de service comme utilisateur de la propriété",
+        url: "https://search.google.com/search-console/users",
+      },
+    ],
     tokenFields: [
       {
         name: "token",
@@ -132,11 +156,22 @@ export const CONNECTORS: ConnectorDef[] = [
     },
     credType: "token",
     pasteHelp:
-      "Sans app OAuth : va sur developers.facebook.com/tools/explorer, choisis ton app " +
-      "(ou crée-en une, c'est gratuit et immédiat), coche les permissions pages_show_list, " +
-      "pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish, " +
-      "génère le jeton et colle-le ici. Passe-le en « longue durée » via l'outil " +
-      "Access Token Debugger pour qu'il dure ~60 jours.",
+      "Sans app OAuth. Permissions à cocher : pages_show_list, pages_read_engagement, " +
+      "pages_manage_posts, instagram_basic, instagram_content_publish.",
+    pasteSteps: [
+      {
+        label: "Graph API Explorer : choisir l'app, cocher les permissions, « Generate Access Token »",
+        url: "https://developers.facebook.com/tools/explorer/",
+      },
+      {
+        label: "Pas encore d'app ? En créer une (gratuit, immédiat, type « Entreprise »)",
+        url: "https://developers.facebook.com/apps/",
+      },
+      {
+        label: "Rendre le jeton longue durée : coller > Debug > « Extend Access Token » (~60 j)",
+        url: "https://developers.facebook.com/tools/debug/accesstoken/",
+      },
+    ],
     tokenFields: [
       {
         name: "token",
@@ -182,9 +217,14 @@ export const CONNECTORS: ConnectorDef[] = [
     },
     credType: "token",
     pasteHelp:
-      "Sans app OAuth : developer.linkedin.com > ton app > onglet Auth > « Token Generator », " +
-      "coche openid, profile et w_member_social, génère le jeton et colle-le ici. " +
-      "Je récupère automatiquement ton identité LinkedIn à l'enregistrement.",
+      "Sans app OAuth. Ton identité LinkedIn est récupérée automatiquement à l'enregistrement.",
+    pasteSteps: [
+      {
+        label: "Ton app > onglet Auth > « Token Generator » : cocher openid, profile, w_member_social",
+        url: "https://www.linkedin.com/developers/apps",
+      },
+      { label: "Générer le jeton et le coller ci-dessous" },
+    ],
     tokenFields: [
       {
         name: "token",

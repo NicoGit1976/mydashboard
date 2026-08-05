@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Plug, TriangleAlert } from "lucide-react";
+import { Check, ExternalLink, Plug, TriangleAlert } from "lucide-react";
 import {
   disconnectProvider,
   saveTokenConnection,
@@ -25,6 +25,7 @@ type Def = {
   description: string;
   tokenFields: TokenField[];
   pasteHelp?: string;
+  pasteSteps?: { label: string; url?: string }[];
   appOnly?: string;
 };
 type Conn = { status: string; url: string | null } | null;
@@ -97,10 +98,34 @@ export default function ConnectorCard({
         ) : def.tokenFields.length > 0 ? (
           open ? (
             <form action={save} className="space-y-2">
-              {def.pasteHelp && (
-                <p className="rounded-lg bg-bg px-3 py-2 text-[11px] leading-relaxed text-ink-soft">
-                  {def.pasteHelp}
-                </p>
+              {(def.pasteHelp || def.pasteSteps?.length) && (
+                <div className="rounded-lg bg-bg px-3 py-2">
+                  {def.pasteHelp && (
+                    <p className="text-[11px] leading-relaxed text-ink-soft">{def.pasteHelp}</p>
+                  )}
+                  {def.pasteSteps?.length ? (
+                    <ol className="mt-1.5 space-y-1">
+                      {def.pasteSteps.map((st, i) => (
+                        <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed">
+                          <span className="shrink-0 font-semibold text-muted">{i + 1}.</span>
+                          {st.url ? (
+                            <a
+                              href={st.url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="inline-flex items-start gap-1 font-medium text-brand hover:underline"
+                            >
+                              {st.label}
+                              <ExternalLink size={10} className="mt-0.5 shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="text-ink-soft">{st.label}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </div>
               )}
               {def.tokenFields.map((f) => (
                 <div key={f.name}>
