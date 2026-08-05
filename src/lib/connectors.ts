@@ -36,6 +36,11 @@ export type ConnectorDef = {
   // Numbered, clickable steps — nobody should have to hunt through a provider's
   // console to find the one page that matters.
   pasteSteps?: { label: string; url?: string }[];
+  // Shown AFTER connecting: what still has to be granted on the provider's side
+  // for the credential to actually see anything. `{account}` is replaced with
+  // the connection's own identity (e.g. the service-account address), so the
+  // user can copy the exact value instead of hunting for it.
+  afterConnect?: { label: string; url?: string }[];
   // Set when the provider CANNOT be connected without a reviewed app. Renders
   // as an honest "unavailable" state instead of a button that leads nowhere.
   appOnly?: string;
@@ -80,6 +85,16 @@ export const CONNECTORS: ConnectorDef[] = [
         url: "https://analytics.google.com/analytics/web/",
       },
     ],
+    afterConnect: [
+      {
+        label: "Activer aussi l'API Analytics Admin (sinon pas de menu déroulant des propriétés)",
+        url: "https://console.cloud.google.com/apis/library/analyticsadmin.googleapis.com",
+      },
+      {
+        label: "GA4 > Admin > Gestion des accès à la propriété > + > coller {account} > rôle Lecteur",
+        url: "https://analytics.google.com/analytics/web/",
+      },
+    ],
     tokenFields: [
       {
         name: "token",
@@ -116,6 +131,12 @@ export const CONNECTORS: ConnectorDef[] = [
       { label: "Coller le même fichier JSON que pour GA4" },
       {
         label: "Ajouter l'adresse du compte de service comme utilisateur de la propriété",
+        url: "https://search.google.com/search-console/users",
+      },
+    ],
+    afterConnect: [
+      {
+        label: "Search Console > Paramètres > Utilisateurs > Ajouter > coller {account} > Complet",
         url: "https://search.google.com/search-console/users",
       },
     ],
@@ -170,6 +191,18 @@ export const CONNECTORS: ConnectorDef[] = [
       {
         label: "Rendre le jeton longue durée : coller > Debug > « Extend Access Token » (~60 j)",
         url: "https://developers.facebook.com/tools/debug/accesstoken/",
+      },
+    ],
+    afterConnect: [
+      {
+        label: "Une Page manque ? Ajoute la permission business_management et régénère : les Pages d'un portefeuille Business ne remontent pas sans elle",
+        url: "https://developers.facebook.com/tools/explorer/",
+      },
+      {
+        label: "Instagram absent ? Le compte doit être Professionnel ET relié à la Page (Page > Paramètres > Comptes liés)",
+      },
+      {
+        label: "Le jeton expire ~60 jours après l'extension — à refaire ensuite",
       },
     ],
     tokenFields: [
@@ -228,6 +261,12 @@ export const CONNECTORS: ConnectorDef[] = [
         url: "https://www.linkedin.com/developers/apps",
       },
       { label: "Générer le jeton et le coller ci-dessous" },
+    ],
+    afterConnect: [
+      {
+        label: "Publie sur TON profil personnel. Les statistiques de Page entreprise exigent l'approbation Community Management API (côté LinkedIn, plusieurs jours)",
+        url: "https://developer.linkedin.com/product-catalog",
+      },
     ],
     tokenFields: [
       {

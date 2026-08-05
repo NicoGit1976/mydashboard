@@ -61,6 +61,7 @@ export default async function SourcesPage({
                 tokenFields: c.tokenFields ?? [],
                 pasteHelp: c.pasteHelp,
                 pasteSteps: c.pasteSteps,
+                afterConnect: c.afterConnect,
                 appOnly: c.appOnly,
               }}
               // Strictly "an OAuth app is configured in the env": the card uses
@@ -68,7 +69,16 @@ export default async function SourcesPage({
               // it with "pasteable" offered OAuth for apps that don't exist,
               // which dead-ends on ?error=notconfigured.
               configured={isConfigured(c)}
-              connection={conn ? { status: conn.status, url: meta?.url ?? null } : null}
+              connection={
+                conn
+                  ? {
+                      status: conn.status,
+                      url: meta?.url ?? null,
+                      // The identity to grant access to on the provider's side.
+                      account: meta?.client_email ?? conn.accountLabel ?? null,
+                    }
+                  : null
+              }
             />
           );
         })}

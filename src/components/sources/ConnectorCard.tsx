@@ -26,9 +26,10 @@ type Def = {
   tokenFields: TokenField[];
   pasteHelp?: string;
   pasteSteps?: { label: string; url?: string }[];
+  afterConnect?: { label: string; url?: string }[];
   appOnly?: string;
 };
-type Conn = { status: string; url: string | null } | null;
+type Conn = { status: string; url: string | null; account?: string | null } | null;
 
 const DIFF: Record<string, { label: string; cls: string }> = {
   easy: { label: "Facile", cls: "bg-positive-soft text-positive" },
@@ -76,6 +77,7 @@ export default function ConnectorCard({
 
       <div className="mt-auto pt-4">
         {connected ? (
+          <>
           <div className="flex items-center justify-between gap-2">
             {connection!.status === "error" ? (
               <span
@@ -95,6 +97,49 @@ export default function ConnectorCard({
               </button>
             </form>
           </div>
+          {def.afterConnect?.length ? (
+            <details className="mt-2 rounded-lg bg-bg px-3 py-2">
+              <summary className="cursor-pointer text-[11px] font-medium text-ink-soft">
+                Rien ne remonte ? Ce qu&apos;il reste à autoriser
+              </summary>
+              <ol className="mt-1.5 space-y-1">
+                {def.afterConnect.map((st, i) => {
+                  // The account identity is the value the user must paste on the
+                  // provider's side — show it inline rather than making them hunt.
+                  const label = st.label.replace("{account}", connection?.account ?? "l'adresse du compte de service");
+                  return (
+                    <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed">
+                      <span className="shrink-0 font-semibold text-muted">{i + 1}.</span>
+                      {st.url ? (
+                        <a
+                          href={st.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="inline-flex items-start gap-1 font-medium text-brand hover:underline"
+                        >
+                          {label}
+                          <ExternalLink size={10} className="mt-0.5 shrink-0" />
+                        </a>
+                      ) : (
+                        <span className="text-ink-soft">{label}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+              {connection?.account && (
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard?.writeText(connection.account!)}
+                  className="mt-1.5 w-full truncate rounded-md bg-white px-2 py-1 text-left font-mono text-[10px] text-ink-soft hover:text-brand"
+                  title="Copier"
+                >
+                  📋 {connection.account}
+                </button>
+              )}
+            </details>
+          ) : null}
+          </>
         ) : def.tokenFields.length > 0 ? (
           open ? (
             <form action={save} className="space-y-2">
