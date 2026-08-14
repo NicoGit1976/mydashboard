@@ -86,6 +86,12 @@ export async function getClientFor(
   clientId: string,
   level: Level = "view",
 ) {
+  // Fail closed on a missing id. `{ id: undefined }` is dropped by Prisma, so
+  // the AND would collapse to the visibility filter alone and hand back the
+  // actor's first visible client instead of null — and every caller is a
+  // server action, where the argument is whatever the client sent.
+  if (typeof clientId !== "string" || clientId.length === 0) return null;
+
   const client = await db.client.findFirst({
     where: { AND: [{ id: clientId }, visibleClientsWhere(actor)] },
     include: { assignments: { select: { userId: true } } },

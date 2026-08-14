@@ -48,3 +48,6 @@ next-env.d.ts
 
 # uploaded client logos (runtime user content)
 /public/uploads/
+
+# local tooling
+/.claude/

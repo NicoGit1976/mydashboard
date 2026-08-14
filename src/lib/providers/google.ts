@@ -42,9 +42,11 @@ const METRIC_MAP: { ga: string; key: string; scale?: number }[] = [
   { ga: "averageSessionDuration", key: "avg_duration" }, // seconds
 ];
 
-function pct(cur: number, prev: number): number {
-  if (!prev) return 0;
-  return Math.round(((cur - prev) / prev) * 1000) / 10;
+// Spreadable delta, absent when the previous period is 0 — reporting 0 % there
+// called "stable" a metric that went from nothing to something.
+function delta(cur: number, prev: number): { delta?: number } {
+  if (!prev) return {};
+  return { delta: Math.round(((cur - prev) / prev) * 1000) / 10 };
 }
 
 type GaRow = {
@@ -78,7 +80,9 @@ export async function fetchGa4(
     dimensions: [{ name: "sessionDefaultChannelGroup" }],
     metrics: [{ name: "sessions" }],
     orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-    limit: 6,
+    // GA4's default channel grouping has ~12 members; 6 silently dropped the
+    // tail and every share was then computed over a partial total.
+    limit: 25,
   };
 
   const [totals, traffic, channels] = await Promise.all([
@@ -97,7 +101,7 @@ export async function fetchGa4(
     const scale = m.scale ?? 1;
     const cur = Number(curRow?.metricValues?.[i]?.value ?? 0) * scale;
     const prev = Number(prevRow?.metricValues?.[i]?.value ?? 0) * scale;
-    kpis[m.key] = { value: Math.round(cur), delta: pct(cur, prev) };
+    kpis[m.key] = { value: Math.round(cur), ...delta(cur, prev) };
   });
 
   let trafficOut: ProviderData["traffic"];
@@ -112,17 +116,22 @@ export async function fetchGa4(
       sessions.push(Number(r.metricValues?.[0]?.value ?? 0));
       users.push(Number(r.metricValues?.[1]?.value ?? 0));
     }
-    trafficOut = { labels, sessions, users };
+    trafficOut = { labels, sessions, users, unit: { primary: "sessions", secondary: "utilisateurs" } };
   }
 
   let channelsOut: ProviderData["channels"];
+  let channelsTruncated = false;
   const crows: GaRow[] = channels?.rows ?? [];
   if (crows.length) {
     channelsOut = crows.map((r) => ({
       name: r.dimensionValues?.[0]?.value ?? "—",
       value: Number(r.metricValues?.[0]?.value ?? 0),
     }));
+    // The query asks for the top CHANNEL_LIMIT rows. When GA4 says there were
+    // more, these values do not sum to total acquisition — a share computed
+    // over them alone would overstate every channel.
+    channelsTruncated = Number(channels?.rowCount ?? crows.length) > crows.length;
   }
 
-  return { kpis, traffic: trafficOut, channels: channelsOut };
+  return { kpis, traffic: trafficOut, channels: channelsOut, channelsTruncated };
 }

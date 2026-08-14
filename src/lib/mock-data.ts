@@ -78,8 +78,11 @@ export const networks: { name: string; value: number; source: SourceKey }[] = [
 export type PageRow = {
   page: string;
   views: number;
-  avgTime: number;
-  bounce: number;
+  // null = the source doesn't measure it. Search Console knows neither dwell
+  // time nor bounce; filling them with 0 and the CTR published two invented
+  // columns in a client report.
+  avgTime: number | null;
+  bounce: number | null;
 };
 
 export const topPages: PageRow[] = [

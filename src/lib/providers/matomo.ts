@@ -63,9 +63,12 @@ function num(v: unknown): number {
   return 0;
 }
 
-function pct(cur: number, prev: number): number {
-  if (!prev) return 0;
-  return Math.round(((cur - prev) / prev) * 1000) / 10;
+// Spreadable delta, absent when there is nothing to compare against. A
+// previous period of exactly 0 used to yield 0 %, i.e. "stable" for a metric
+// that went from nothing to something.
+function delta(cur: number, prev: number): { delta?: number } {
+  if (!prev) return {};
+  return { delta: Math.round(((cur - prev) / prev) * 1000) / 10 };
 }
 
 
@@ -119,7 +122,7 @@ export async function fetchMatomo(
     const val = scaleToInt ? Math.round(c) : c;
     // Omit delta when the previous period is unavailable — an honest "no trend"
     // instead of a fabricated 0 %.
-    kpis[key] = prev ? { value: val, delta: pct(c, num(prev[curName])) } : { value: val };
+    kpis[key] = prev ? { value: val, ...delta(c, num(prev[curName])) } : { value: val };
   };
   // No summary ⇒ emit no KPIs at all. Emitting zeros would overwrite the mock
   // with fake "real" data, which is worse than showing nothing.
@@ -143,7 +146,16 @@ export async function fetchMatomo(
       values: [num((row as MatomoSummary)?.nb_visits), num((row as MatomoSummary)?.nb_uniq_visitors)],
     }));
     const { labels, series } = bucketByGranularity(rows, range.granularity);
-    if (labels.length) traffic = { labels, sessions: series[0], users: series[1] };
+    if (labels.length)
+      traffic = {
+        labels,
+        sessions: series[0],
+        users: series[1],
+        unit: { primary: "sessions", secondary: "visiteurs uniques" },
+        // Week/month buckets at the edges of the range cover only part of a
+        // week/month: their totals are structurally low, not a real dip.
+        partialEdges: range.granularity !== "day",
+      };
   }
 
   // Acquisition channels (absolute visit counts).

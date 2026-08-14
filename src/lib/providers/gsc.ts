@@ -36,9 +36,12 @@ export async function listGscSites(token: string): Promise<AccountOption[]> {
 
 type Row = { keys?: string[]; clicks?: number; impressions?: number; ctr?: number; position?: number };
 
-function pct(cur: number, prev: number): number {
-  if (!prev) return 0;
-  return Math.round(((cur - prev) / prev) * 1000) / 10;
+// A previous period of exactly 0 has no percentage. Returning 0 said "stable"
+// about a metric that went from nothing to something — spreadable-empty keeps
+// ProviderData's promise: an honest "no trend" beats a fabricated 0 %.
+function delta(cur: number, prev: number): { delta?: number } {
+  if (!prev) return {};
+  return { delta: Math.round(((cur - prev) / prev) * 1000) / 10 };
 }
 
 export async function fetchGsc(
@@ -71,20 +74,22 @@ export async function fetchGsc(
   if (c) {
     kpis.gsc_clicks = {
       value: Math.round(c.clicks ?? 0),
-      ...(p ? { delta: pct(c.clicks ?? 0, p.clicks ?? 0) } : {}),
+      ...(p ? delta(c.clicks ?? 0, p.clicks ?? 0) : {}),
     };
     kpis.gsc_impressions = {
       value: Math.round(c.impressions ?? 0),
-      ...(p ? { delta: pct(c.impressions ?? 0, p.impressions ?? 0) } : {}),
+      ...(p ? delta(c.impressions ?? 0, p.impressions ?? 0) : {}),
     };
     kpis.gsc_ctr = {
       value: Math.round((c.ctr ?? 0) * 1000) / 10,
-      ...(p ? { delta: pct(c.ctr ?? 0, p.ctr ?? 0) } : {}),
+      ...(p ? delta(c.ctr ?? 0, p.ctr ?? 0) : {}),
     };
     kpis.gsc_position = {
       value: Math.round((c.position ?? 0) * 10) / 10,
-      // Lower is better here, so the sign is deliberately inverted.
-      ...(p ? { delta: pct(p.position ?? 0, c.position ?? 0) } : {}),
+      // Natural sign, like every other metric. gsc_position carries invert:true
+      // in the catalog, which is what marks "lower is better" — pre-inverting
+      // here as well flipped it twice and called every improvement a decline.
+      ...(p ? delta(c.position ?? 0, p.position ?? 0) : {}),
     };
   }
 
@@ -94,7 +99,16 @@ export async function fetchGsc(
       .filter((r) => r.keys?.[0])
       .map((r) => ({ date: r.keys![0], values: [Math.round(r.clicks ?? 0), Math.round(r.impressions ?? 0)] }));
     const { labels, series } = bucketByGranularity(rows, range.granularity);
-    if (labels.length) traffic = { labels, sessions: series[0], users: series[1] };
+    // Search Console counts clicks and impressions, NOT sessions — say so, or
+    // a Google click count gets reported to the client as web traffic.
+    if (labels.length)
+      traffic = {
+        labels,
+        sessions: series[0],
+        users: series[1],
+        unit: { primary: "clics Google", secondary: "impressions Google" },
+        partialEdges: range.granularity !== "day",
+      };
   }
 
   let topPages: ProviderData["topPages"];
@@ -103,8 +117,10 @@ export async function fetchGsc(
       .map((r) => ({
         page: (r.keys?.[0] ?? "").replace(/^https?:\/\/[^/]+/, "") || "/",
         views: Math.round(r.clicks ?? 0),
-        avgTime: 0,
-        bounce: Math.round((r.ctr ?? 0) * 100),
+        // Search Console measures neither. Reporting 0 s and passing the CTR
+        // off as a bounce rate invented two columns of a client's report.
+        avgTime: null,
+        bounce: null,
       }))
       .filter((r) => r.views > 0);
     if (rows.length) topPages = rows;

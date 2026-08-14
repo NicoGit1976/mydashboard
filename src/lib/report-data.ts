@@ -12,12 +12,17 @@ import type { ProviderData } from "@/lib/providers/types";
 import type { SourceKey } from "@/lib/sources";
 import { resolveRange, type DateRange } from "@/lib/date-range";
 
+// The traffic curve carries its own unit and completeness flags, because
+// "sessions" is only true for some providers: Search Console returns clicks.
+type TrafficSet = NonNullable<ProviderData["traffic"]>;
+
 export type ReportData = {
   kpis: typeof KPI_METRICS;
-  datasets: typeof DATASETS;
+  datasets: Omit<typeof DATASETS, "traffic"> & { traffic: TrafficSet };
   liveSources: string[]; // providers that returned live data this render
   liveMetrics: string[]; // KPI metric ids actually filled by a live provider
   liveDatasets: string[]; // dataset keys (traffic/channels) filled live
+  channelsTruncated: boolean; // the channel list is a top-N, not the whole
   range: DateRange; // the period actually queried — headers must state THIS
 };
 
@@ -99,10 +104,11 @@ export async function getReportData(
   // read as an artificial collapse.
   const gscRange = resolveRange(period, 2);
   const kpis = structuredClone(KPI_METRICS);
-  const datasets = structuredClone(DATASETS);
+  const datasets = structuredClone(DATASETS) as ReportData["datasets"];
   const liveSources: string[] = [];
   const liveMetrics: string[] = [];
   const liveDatasets: string[] = [];
+  let channelsTruncated = false;
 
   const sources = await db.clientSource.findMany({ where: { clientId: client.id } });
 
@@ -133,6 +139,7 @@ export async function getReportData(
         }
         if (d.channels) {
           datasets.channels = d.channels;
+          channelsTruncated = Boolean(d.channelsTruncated);
           liveDatasets.push("channels");
         }
         if (d.topPages) {
@@ -166,5 +173,5 @@ export async function getReportData(
     console.error(`[report-data] shortlink stats failed (client=${client.id}):`, err);
   }
 
-  return { kpis, datasets, liveSources, liveMetrics, liveDatasets, range };
+  return { kpis, datasets, liveSources, liveMetrics, liveDatasets, channelsTruncated, range };
 }

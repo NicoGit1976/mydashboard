@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Check, Download, Pencil, Settings } from "lucide-react";
 import { initials } from "@/lib/initials";
 import ShareButton from "@/components/report/ShareButton";
+import InsightsPanel from "@/components/report/InsightsPanel";
 
 type Props = {
   client: {
@@ -17,6 +18,7 @@ type Props = {
   editMode: boolean;
   toggleHref: string;
   settingsHref: string;
+  clientId: string;
   reportId: string;
   shareToken: string | null;
 };
@@ -28,6 +30,7 @@ export default function ReportHeader({
   editMode,
   toggleHref,
   settingsHref,
+  clientId,
   reportId,
   shareToken,
 }: Props) {
@@ -71,6 +74,9 @@ export default function ReportHeader({
       </div>
 
       <div className="no-print flex items-center gap-2">
+        {/* Available in both modes: reading the analysis and inserting it as a
+            block are the two halves of the same gesture. */}
+        <InsightsPanel clientId={clientId} />
         {editMode ? (
           <Link
             href={toggleHref}

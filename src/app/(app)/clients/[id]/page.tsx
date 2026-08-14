@@ -62,6 +62,7 @@ export default async function ClientReportPage({
         editMode={editMode}
         toggleHref={editMode ? `/clients/${id}` : `/clients/${id}?edit=1`}
         settingsHref={`/clients/${id}/edit`}
+        clientId={id}
         reportId={report.id}
         shareToken={shareLink?.token ?? null}
       />
