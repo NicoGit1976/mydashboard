@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { auth } from "@/auth";
-import { getConnector, isConfigured } from "@/lib/connectors";
+import { getConnector } from "@/lib/connectors";
+import { resolveOAuthCredentials } from "@/lib/provider-apps";
 
 // Redirects must be built on the PUBLIC url: behind Traefik the request
 // host is the container's own (0.0.0.0:3000), which the browser can't reach.
@@ -21,14 +22,16 @@ export async function GET(
 
   const def = getConnector(provider);
   if (!def?.oauth) return NextResponse.redirect(appUrl("/sources?error=unknown"));
-  if (!isConfigured(def))
+  // The caller's own registered application, else the instance-wide one.
+  const creds = await resolveOAuthCredentials(session.user.id, provider);
+  if (!creds)
     return NextResponse.redirect(appUrl(`/sources?error=notconfigured&p=${provider}`));
 
   const redirectUri = `${PUBLIC_BASE}/api/connect/${provider}/callback`;
   const state = randomBytes(16).toString("hex");
 
   const authUrl = new URL(def.oauth.authUrl);
-  authUrl.searchParams.set("client_id", process.env[def.oauth.clientIdEnv]!);
+  authUrl.searchParams.set("client_id", creds.clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("scope", def.oauth.scopes.join(" "));

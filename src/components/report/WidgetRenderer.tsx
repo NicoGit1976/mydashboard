@@ -26,6 +26,11 @@ export default function WidgetRenderer({
   const cfg = (widget.config ?? {}) as Record<string, string>;
   const source = (widget.sourceKey ?? undefined) as SourceKey | undefined;
   const subtitle = cfg.subtitle;
+  // Same rule as the KPI badge: a dataset is "démo" when no connected
+  // provider filled it — but only flag it once at least one source IS live,
+  // so a brand-new report isn't plastered with badges.
+  const datasetDemo = (key: string) =>
+    data.liveSources.length > 0 && !data.liveDatasets.includes(key);
 
   switch (widget.type) {
     case "kpi": {
@@ -49,7 +54,7 @@ export default function WidgetRenderer({
     case "line": {
       const d = data.datasets.traffic;
       return (
-        <WidgetCard title={widget.title ?? "Trafic web"} subtitle={subtitle} source={source}>
+        <WidgetCard title={widget.title ?? "Trafic web"} subtitle={subtitle} source={source} demo={datasetDemo("traffic")}>
           <LineChartCard labels={d.labels} sessions={d.sessions} users={d.users} />
         </WidgetCard>
       );
@@ -59,7 +64,7 @@ export default function WidgetRenderer({
       // can never drift from the chart it sits in.
       const total = data.datasets.channels.reduce((s, c) => s + c.value, 0);
       return (
-        <WidgetCard title={widget.title ?? "Canaux"} subtitle={subtitle} source={source}>
+        <WidgetCard title={widget.title ?? "Canaux"} subtitle={subtitle} source={source} demo={datasetDemo("channels")}>
           <DonutChartCard
             data={data.datasets.channels}
             centerValue={fmtCompact(total)}
@@ -70,13 +75,13 @@ export default function WidgetRenderer({
     }
     case "bar":
       return (
-        <WidgetCard title={widget.title ?? "Engagement par réseau"} subtitle={subtitle} source={source}>
+        <WidgetCard title={widget.title ?? "Engagement par réseau"} subtitle={subtitle} source={source} demo={datasetDemo("networks")}>
           <BarChartCard data={data.datasets.networks} />
         </WidgetCard>
       );
     case "table":
       return (
-        <WidgetCard title={widget.title ?? "Pages les plus vues"} subtitle={subtitle} source={source}>
+        <WidgetCard title={widget.title ?? "Pages les plus vues"} subtitle={subtitle} source={source} demo={datasetDemo("topPages")}>
           <TableCard rows={data.datasets.topPages} />
         </WidgetCard>
       );

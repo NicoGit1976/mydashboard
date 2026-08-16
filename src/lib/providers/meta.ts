@@ -21,14 +21,21 @@ function gget(url: URL): Promise<Response> {
 }
 
 // Swap a short-lived user token (from the OAuth callback) for a ~60-day one.
-export async function exchangeLongLivedToken(shortToken: string): Promise<string | null> {
-  const id = process.env.META_CLIENT_ID;
-  const secret = process.env.META_CLIENT_SECRET;
-  if (!id || !secret) return null;
+//
+// The credentials are passed IN, never read from the environment: fb_exchange_token
+// is only valid for the application that issued the short-lived token, and users
+// may bring their own. Signing with the instance app returned a silent null and
+// left a token that died within the hour behind a "Connecté" badge.
+export async function exchangeLongLivedToken(
+  shortToken: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<string | null> {
+  if (!clientId || !clientSecret) return null;
   const u = new URL(`${G}/oauth/access_token`);
   u.searchParams.set("grant_type", "fb_exchange_token");
-  u.searchParams.set("client_id", id);
-  u.searchParams.set("client_secret", secret);
+  u.searchParams.set("client_id", clientId);
+  u.searchParams.set("client_secret", clientSecret);
   u.searchParams.set("fb_exchange_token", shortToken);
   const res = await gget(u);
   if (!res.ok) return null;

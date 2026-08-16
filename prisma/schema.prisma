@@ -29,6 +29,7 @@ model User {
   footerNote   String?
   clients      Client[]
   connections  Connection[]
+  providerApps  ProviderApp[]
   assignments  ClientAssignment[]
   posts        Post[]   @relation("PostAuthor")
   approvals    Post[]   @relation("PostApprover")
@@ -119,6 +120,11 @@ model Connection {
   refreshToken String? // encrypted at rest
   expiresAt    DateTime?
   meta         Json? // non-secret provider config (e.g. matomo url)
+  // Which OAuth application minted this grant. A refresh MUST use the same
+  // client the authorize step used, so this is recorded rather than inferred:
+  // the user can register, edit or delete their app afterwards, and guessing
+  // would silently refresh against a different application.
+  oauthClientId String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   clientSources ClientSource[]
@@ -237,4 +243,28 @@ model ClientSource {
   createdAt  DateTime @default(now())
 
   @@unique([clientId, provider])
+}
+
+// A user's OWN OAuth application for a provider ("bring your own app").
+//
+// Kept apart from Connection on purpose: the app registration is a durable
+// thing you did once at LinkedIn or Meta, while a Connection is a token that
+// expires, gets revoked and comes back. Disconnecting must not make you
+// re-enter your client id and secret.
+//
+// Why per user at all: without a legal entity behind the instance, its
+// operator cannot sign a provider's developer terms on everyone's behalf —
+// and one shared app means one shared rate limit and one shared suspension.
+model ProviderApp {
+  id              String   @id @default(cuid())
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  provider        String // ga4 | meta | gmb | linkedin
+  clientId        String
+  clientSecretEnc String // encrypted at rest
+  label           String? // e.g. the LinkedIn Page the app lives under
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([ownerId, provider])
 }

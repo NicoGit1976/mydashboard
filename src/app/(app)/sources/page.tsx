@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { CONNECTORS, isConfigured } from "@/lib/connectors";
+import { CONNECTORS } from "@/lib/connectors";
+import { hasOAuthCredentials, listProviderApps } from "@/lib/provider-apps";
+import ProviderAppForm from "@/components/sources/ProviderAppForm";
 import ConnectorCard from "@/components/sources/ConnectorCard";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -10,6 +12,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   token: "Le fournisseur a refusé l'échange de jeton.",
   exchange: "Erreur réseau pendant l'échange OAuth.",
   unknown: "Connecteur inconnu.",
+  longlived:
+    "Connexion établie, mais l'échange contre un jeton longue durée a échoué — il aurait expiré en moins d'une heure. Vérifie que l'application OAuth utilisée est bien la tienne, puis réessaie.",
 };
 
 export default async function SourcesPage({
@@ -24,6 +28,16 @@ export default async function SourcesPage({
     ? await db.connection.findMany({ where: { ownerId: userId } })
     : [];
   const byProvider = new Map(connections.map((c) => [c.provider, c]));
+
+  // Configured now means: this USER can start an OAuth flow — with their own
+  // registered application, or failing that the instance-wide one.
+  const ownApps = userId ? await listProviderApps(userId) : [];
+  const appByProvider = new Map(ownApps.map((a) => [a.provider, a]));
+  const canOAuth = new Map<string, boolean>();
+  for (const c of CONNECTORS) {
+    canOAuth.set(c.key, userId ? await hasOAuthCredentials(userId, c.key) : false);
+  }
+  const publicBase = process.env.APP_URL ?? "https://tools.d-analytica.cloud";
 
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-6">
@@ -64,11 +78,11 @@ export default async function SourcesPage({
                 afterConnect: c.afterConnect,
                 appOnly: c.appOnly,
               }}
-              // Strictly "an OAuth app is configured in the env": the card uses
-              // this to decide whether to offer the one-click flow. Conflating
-              // it with "pasteable" offered OAuth for apps that don't exist,
-              // which dead-ends on ?error=notconfigured.
-              configured={isConfigured(c)}
+              // "This user can start an OAuth flow" — with their own
+              // registered application, or the instance's. The card uses it to
+              // decide whether to offer the one-click flow; offering it without
+              // any application dead-ends on ?error=notconfigured.
+              configured={c.authType === "token" ? true : (canOAuth.get(c.key) ?? false)}
               connection={
                 conn
                   ? {
@@ -79,7 +93,16 @@ export default async function SourcesPage({
                     }
                   : null
               }
-            />
+            >
+              {c.oauth && (
+                <ProviderAppForm
+                  provider={c.key}
+                  providerLabel={c.label}
+                  redirectUri={`${publicBase}/api/connect/${c.key}/callback`}
+                  app={appByProvider.get(c.key) ?? null}
+                />
+              )}
+            </ConnectorCard>
           );
         })}
       </div>

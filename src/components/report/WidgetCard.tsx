@@ -8,12 +8,15 @@ export default function WidgetCard({
   title,
   subtitle,
   source,
+  demo = false,
   className,
   children,
 }: {
   title: string;
   subtitle?: string;
   source?: SourceKey;
+  /** No connected source fills this widget — its figures are sample values. */
+  demo?: boolean;
   className?: string;
   children: ReactNode;
 }) {
@@ -28,7 +31,17 @@ export default function WidgetCard({
           </h3>
           {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
         </div>
-        {source && <SourceBadge source={source} />}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {demo && (
+            <span
+              title="Chiffres de démonstration — aucune source branchée ne les alimente"
+              className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted"
+            >
+              démo
+            </span>
+          )}
+          {source && <SourceBadge source={source} />}
+        </span>
       </header>
       <div className="flex-1 px-5 pb-5">{children}</div>
     </section>

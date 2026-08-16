@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import { Check, ExternalLink, Plug, TriangleAlert } from "lucide-react";
 import {
   disconnectProvider,
@@ -41,10 +41,13 @@ export default function ConnectorCard({
   def,
   configured,
   connection,
+  children,
 }: {
   def: Def;
   configured: boolean;
   connection: Conn;
+  /** Slot under the card's actions — used for the bring-your-own-app form. */
+  children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const connected = !!connection;
@@ -273,6 +276,7 @@ export default function ConnectorCard({
             Indisponible
           </button>
         )}
+        {children}
       </div>
     </div>
   );

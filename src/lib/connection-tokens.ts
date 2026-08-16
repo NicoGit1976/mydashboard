@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { getConnector } from "@/lib/connectors";
+import { resolveOAuthCredentials } from "@/lib/provider-apps";
 import { exchangeLongLivedToken } from "@/lib/providers/meta";
 import { GA4_SCOPE, GSC_SCOPE, getServiceAccountToken } from "@/lib/providers/google-sa";
 
@@ -9,13 +10,37 @@ export type LiveToken = { token: string; meta: Record<string, unknown> };
 type Refreshed = { token: string; refreshToken?: string; expiresIn?: number };
 
 // Provider-specific refresh. Returns null when it can't produce a fresh token.
+//
+// Owner-aware on purpose: a grant minted against the user's OWN application can
+// only be refreshed against that same application. Reading the instance env here
+// sent someone else's client — or, with no env set, an empty client_secret — and
+// every OAuth connection died at its first expiry, about an hour after being made.
 async function refreshToken(
   provider: string,
+  ownerId: string,
+  mintedWithClientId: string | null,
   currentToken: string,
   encRefresh: string | null,
 ): Promise<Refreshed | null> {
   const def = getConnector(provider);
   const isGoogle = Boolean(def?.oauth?.tokenUrl?.includes("oauth2.googleapis.com"));
+
+  const creds = await resolveOAuthCredentials(ownerId, provider);
+  if (!creds) {
+    console.error(
+      `[tokens] aucune application OAuth pour owner=${ownerId} provider=${provider} — rafraîchissement impossible`,
+    );
+    return null;
+  }
+  // Refusing beats guessing: if the registration changed since the grant was
+  // issued, the provider would reject the call anyway — and a wrong-client
+  // request is exactly what must never leave this process.
+  if (mintedWithClientId && mintedWithClientId !== creds.clientId) {
+    console.error(
+      `[tokens] l'application a changé depuis la connexion (owner=${ownerId} provider=${provider}) — reconnexion nécessaire`,
+    );
+    return null;
+  }
 
   if (isGoogle && encRefresh && def?.oauth) {
     const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -24,8 +49,8 @@ async function refreshToken(
       body: new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: decrypt(encRefresh),
-        client_id: process.env[def.oauth.clientIdEnv] ?? "",
-        client_secret: process.env[def.oauth.clientSecretEnv] ?? "",
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
       }),
       signal: AbortSignal.timeout(8000),
     });
@@ -36,7 +61,7 @@ async function refreshToken(
 
   if (provider === "meta") {
     // fb_exchange_token extends a still-valid long-lived token by ~60 days.
-    const extended = await exchangeLongLivedToken(currentToken);
+    const extended = await exchangeLongLivedToken(currentToken, creds.clientId, creds.clientSecret);
     return extended ? { token: extended, expiresIn: 60 * 24 * 3600 } : null;
   }
 
@@ -47,8 +72,8 @@ async function refreshToken(
       body: new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: decrypt(encRefresh),
-        client_id: process.env[def.oauth.clientIdEnv] ?? "",
-        client_secret: process.env[def.oauth.clientSecretEnv] ?? "",
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
       }),
       signal: AbortSignal.timeout(8000),
     });
@@ -128,7 +153,7 @@ async function resolveConnectionToken(
   if (expiresSoon) {
     let refreshed: Refreshed | null = null;
     try {
-      refreshed = await refreshToken(provider, token, conn.refreshToken);
+      refreshed = await refreshToken(provider, conn.ownerId, conn.oauthClientId, token, conn.refreshToken);
     } catch {
       refreshed = null;
     }
