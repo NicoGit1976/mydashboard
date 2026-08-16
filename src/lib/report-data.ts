@@ -41,7 +41,7 @@ async function cachedFetch(
   const data = await fn();
   // An empty bundle means the provider produced nothing — don't pin a report to
   // demo values for 10 minutes because of one bad round-trip.
-  if (Object.keys(data.kpis).length || data.traffic || data.channels || data.topPages) {
+  if (Object.keys(data.kpis).length || data.traffic || data.channels || data.topPages || data.topQueries) {
     cache.set(key, { at: Date.now(), data });
   }
   if (cache.size > 500) {
@@ -146,8 +146,12 @@ export async function getReportData(
           datasets.topPages = d.topPages;
           liveDatasets.push("topPages");
         }
+        if (d.topQueries) {
+          datasets.topQueries = d.topQueries;
+          liveDatasets.push("topQueries");
+        }
 
-        if (Object.keys(d.kpis).length || d.traffic || d.channels || d.topPages) {
+        if (Object.keys(d.kpis).length || d.traffic || d.channels || d.topPages || d.topQueries) {
           liveSources.push(s.provider);
         }
       } catch (err) {

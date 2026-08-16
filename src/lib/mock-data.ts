@@ -85,6 +85,23 @@ export type PageRow = {
   bounce: number | null;
 };
 
+export type QueryRow = {
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+};
+
+// Sample queries — replaced wholesale by Search Console once connected.
+export const topQueries: QueryRow[] = [
+  { query: "spa duo week-end", clicks: 412, impressions: 9840, ctr: 4.2, position: 3.1 },
+  { query: "hôtel spa région", clicks: 268, impressions: 12400, ctr: 2.2, position: 6.8 },
+  { query: "suite avec jacuzzi", clicks: 154, impressions: 4310, ctr: 3.6, position: 4.5 },
+  { query: "restaurant gastronomique", clicks: 97, impressions: 6720, ctr: 1.4, position: 11.2 },
+  { query: "réserver chambre vue mer", clicks: 63, impressions: 2180, ctr: 2.9, position: 8.4 },
+];
+
 export const topPages: PageRow[] = [
   { page: "/offres/spa-duo", views: 6240, avgTime: 184, bounce: 31 },
   { page: "/", views: 5810, avgTime: 96, bounce: 44 },

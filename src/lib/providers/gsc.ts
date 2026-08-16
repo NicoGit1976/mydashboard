@@ -60,11 +60,12 @@ export async function fetchGsc(
     } | null>;
 
   // The caller already shifted this range back for Search Console's ~2-day lag.
-  const [cur, prev, byDate, byPage] = await Promise.all([
+  const [cur, prev, byDate, byPage, byQuery] = await Promise.all([
     query(range.start, range.end, []),
     query(range.prevStart, range.prevEnd, []),
     query(range.start, range.end, ["date"], 500),
     query(range.start, range.end, ["page"], 5),
+    query(range.start, range.end, ["query"], 15),
   ]);
 
   const c = cur?.rows?.[0];
@@ -126,5 +127,22 @@ export async function fetchGsc(
     if (rows.length) topPages = rows;
   }
 
-  return { kpis, traffic, topPages };
+  // Queries are ordered by clicks (the API's default) and capped: a report
+  // shows the handful that matter, not the long tail.
+  let topQueries: ProviderData["topQueries"];
+  if (byQuery?.rows?.length) {
+    const rows = byQuery.rows
+      .filter((r) => r.keys?.[0])
+      .map((r) => ({
+        query: r.keys![0],
+        clicks: Math.round(r.clicks ?? 0),
+        impressions: Math.round(r.impressions ?? 0),
+        ctr: Math.round((r.ctr ?? 0) * 1000) / 10,
+        position: Math.round((r.position ?? 0) * 10) / 10,
+      }))
+      .filter((r) => r.impressions > 0);
+    if (rows.length) topQueries = rows;
+  }
+
+  return { kpis, traffic, topPages, topQueries };
 }

@@ -42,6 +42,8 @@ const DATASET_PROVIDERS: Record<string, string[]> = {
   traffic: ["matomo", "ga4", "gsc"],
   channels: ["matomo", "ga4"],
   topPages: ["matomo", "gsc"],
+  // Only Search Console knows what people typed.
+  topQueries: ["gsc"],
   // `networks` has no fetcher at all — never seed it.
   networks: [],
 };
@@ -140,6 +142,10 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
           "line:traffic",
         ],
       },
+      {
+        heading: "Requêtes les plus performantes",
+        widgets: ["table:queries"],
+      },
       { heading: "Pages qui rapportent des clics", widgets: ["table:pages"] },
       { heading: "Analyse", widgets: ["ai", "content"] },
     ],
@@ -193,6 +199,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
           "kpi:gsc_impressions",
           "kpi:gsc_ctr",
           "kpi:gsc_position",
+          "table:queries",
         ],
       },
       {

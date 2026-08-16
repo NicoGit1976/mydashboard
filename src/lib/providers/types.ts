@@ -20,6 +20,17 @@ export type ProviderData = {
   // these values do not sum to the whole.
   channels?: { name: string; value: number }[];
   channelsTruncated?: boolean;
+  // Search queries people actually reached the site with — the heart of an SEO
+  // report, and the one thing no other provider can supply.
+  topQueries?: {
+    query: string;
+    clicks: number;
+    impressions: number;
+    /** click-through rate, in percent */
+    ctr: number;
+    /** average position in the results; lower is better */
+    position: number;
+  }[];
   // Most-viewed pages. avgTime in seconds, bounce in percent; null when the
   // source doesn't measure them.
   topPages?: { page: string; views: number; avgTime: number | null; bounce: number | null }[];

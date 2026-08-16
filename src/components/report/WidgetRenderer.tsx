@@ -5,6 +5,7 @@ import LineChartCard from "@/components/widgets/LineChartCard";
 import DonutChartCard from "@/components/widgets/DonutChartCard";
 import BarChartCard from "@/components/widgets/BarChartCard";
 import TableCard from "@/components/widgets/TableCard";
+import QueryTableCard from "@/components/widgets/QueryTableCard";
 import ContentBlock from "@/components/widgets/ContentBlock";
 import IllustrationBlock from "@/components/widgets/IllustrationBlock";
 import IconBlock from "@/components/widgets/IconBlock";
@@ -79,12 +80,25 @@ export default function WidgetRenderer({
           <BarChartCard data={data.datasets.networks} />
         </WidgetCard>
       );
-    case "table":
+    case "table": {
+      // One widget type, two datasets: pages by default, search queries when
+      // the config asks for them.
+      const queries = cfg.dataset === "topQueries";
       return (
-        <WidgetCard title={widget.title ?? "Pages les plus vues"} subtitle={subtitle} source={source} demo={datasetDemo("topPages")}>
-          <TableCard rows={data.datasets.topPages} />
+        <WidgetCard
+          title={widget.title ?? (queries ? "Requêtes les plus performantes" : "Pages les plus vues")}
+          subtitle={subtitle}
+          source={source}
+          demo={datasetDemo(queries ? "topQueries" : "topPages")}
+        >
+          {queries ? (
+            <QueryTableCard rows={data.datasets.topQueries} />
+          ) : (
+            <TableCard rows={data.datasets.topPages} />
+          )}
         </WidgetCard>
       );
+    }
     case "content":
       // Sanitize at render too (defense-in-depth): protects rows written before
       // write-sanitization existed, and the public /share surface.

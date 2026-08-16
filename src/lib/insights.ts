@@ -42,6 +42,7 @@ export type FactSheet = {
   channels: { name: string; value: number; share: number }[];
   channelsTruncated: boolean;
   topPages: { page: string; views: number; avgTime: number | null; bounce: number | null }[];
+  topQueries: { query: string; clicks: number; impressions: number; ctr: number; position: number }[];
 };
 
 function formatValue(value: number, format?: string): string {
@@ -144,6 +145,11 @@ export function buildFactSheet(
     ? data.datasets.topPages.map((p) => ({ ...p, page: scrub(p.page) }))
     : [];
 
+  // Search queries are typed by strangers: same scrubbing as page paths.
+  const topQueries = data.liveDatasets.includes("topQueries")
+    ? data.datasets.topQueries.map((q) => ({ ...q, query: scrub(q.query) }))
+    : [];
+
   return {
     client: scrub(client.name),
     sector: client.sector ? scrub(client.sector) : null,
@@ -160,6 +166,7 @@ export function buildFactSheet(
     channels,
     channelsTruncated: channelsLive && data.channelsTruncated,
     topPages,
+    topQueries,
   };
 }
 
@@ -170,7 +177,8 @@ export function isEmpty(sheet: FactSheet): boolean {
     sheet.kpis.length === 0 &&
     !sheet.traffic &&
     sheet.channels.length === 0 &&
-    sheet.topPages.length === 0
+    sheet.topPages.length === 0 &&
+    sheet.topQueries.length === 0
   );
 }
 
@@ -235,6 +243,18 @@ export function factsToText(sheet: FactSheet): string {
         : "CANAUX D'ACQUISITION :",
     );
     for (const c of sheet.channels) lines.push(`- ${c.name} : ${fmtInt(c.value)} sessions (${c.share} %)`);
+    lines.push("");
+  }
+
+  if (sheet.topQueries.length) {
+    lines.push(
+      "REQUÊTES GOOGLE (ce que les gens tapent pour trouver le site ; pour la position moyenne, plus le chiffre est bas, mieux c'est) :",
+    );
+    for (const q of sheet.topQueries) {
+      lines.push(
+        `- « ${q.query} » : ${fmtInt(q.clicks)} clics, ${fmtInt(q.impressions)} impressions, CTR ${q.ctr} %, position moyenne ${q.position}`,
+      );
+    }
     lines.push("");
   }
 

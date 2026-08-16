@@ -1,7 +1,7 @@
 // The catalog is the seam between widgets and data. Today it serves mock values;
 // in Phase 3, connectors (Matomo, GA4, Meta…) replace these resolvers — the
 // widgets and builder never change.
-import { channels, commentaryHtml, networks, topPages, traffic } from "@/lib/mock-data";
+import { channels, commentaryHtml, networks, topPages, topQueries, traffic } from "@/lib/mock-data";
 import type { SourceKey } from "@/lib/sources";
 
 export type WidgetType =
@@ -79,7 +79,7 @@ export const KPI_METRIC_OPTIONS = Object.entries(KPI_METRICS).map(([value, m]) =
   label: m.label,
 }));
 
-export const DATASETS = { traffic, channels, networks, topPages };
+export const DATASETS = { traffic, channels, networks, topPages, topQueries };
 
 export type Blueprint = {
   type: WidgetType;
@@ -120,6 +120,7 @@ export const WIDGET_BLUEPRINTS: Record<string, Blueprint> = {
   "donut:channels": { type: "donut", label: "Anneau · Canaux", title: "Canaux d'acquisition", subtitle: "Répartition des sessions", span: 4, sourceKey: "ga4", config: { dataset: "channels", centerValue: "48,2k", centerLabel: "sessions" } },
   "bar:networks": { type: "bar", label: "Barres · Réseaux", title: "Engagement par réseau", subtitle: "Interactions sur la période", span: 6, sourceKey: "instagram", config: { dataset: "networks" } },
   "table:pages": { type: "table", label: "Tableau · Top pages", title: "Pages les plus vues", subtitle: "Top 5 du site", span: 6, sourceKey: "matomo", config: { dataset: "topPages" } },
+  "table:queries": { type: "table", label: "Tableau · Requêtes Google", title: "Requêtes les plus performantes", subtitle: "Ce que les gens tapent pour vous trouver", span: 6, sourceKey: "gmb", config: { dataset: "topQueries" } },
   content: { type: "content", label: "Bloc texte (HTML)", title: "Bloc de contenu", subtitle: "Texte libre (HTML)", span: 8, sourceKey: "manual", config: { html: "<h3>Titre de section</h3><p>Votre analyse ici — texte libre avec mise en forme <strong>HTML</strong>.</p>" } },
   "content:demo": { type: "content", label: "Analyse (démo)", title: "Analyse & recommandations", subtitle: "Bloc de contenu libre (HTML)", span: 8, sourceKey: "manual", config: { html: commentaryHtml } },
   illustration: { type: "illustration", label: "Illustration", span: 4, config: { illustration: "growth" } },
@@ -141,7 +142,7 @@ export const WIDGET_PALETTE = [
   "kpi:ig", "kpi:ig_reach", "kpi:fb_likes", "kpi:fb_reach", "kpi:fb_engagement",
   "kpi:li", "kpi:li_impressions", "kpi:li_engagement_rate",
   "icon",
-  "line:traffic", "donut:channels", "bar:networks", "table:pages",
+  "line:traffic", "donut:channels", "bar:networks", "table:pages", "table:queries",
   "content", "illustration",
 ].map((key) => ({ key, label: WIDGET_BLUEPRINTS[key].label }));
 
