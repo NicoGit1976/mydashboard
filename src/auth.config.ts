@@ -16,6 +16,9 @@ export const authConfig = {
       // Short links: public redirects clicked from social posts — a login wall
       // here would break every link ever shared.
       if (p === "/l" || p.startsWith("/l/")) return true;
+      // Legal pages: the privacy-policy URL is declared to LinkedIn, Meta and
+      // Google, whose reviewers must reach it without an account.
+      if (p === "/confidentialite" || p === "/mentions-legales") return true;
       const onLogin = nextUrl.pathname === "/login";
       if (onLogin) {
         return isLoggedIn

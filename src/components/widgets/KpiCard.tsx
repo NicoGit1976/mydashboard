@@ -119,7 +119,7 @@ export default function KpiCard({
             <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted">
               <span style={{ color: yoyGood ? C.positive : C.negative }}>
                 {fmtPct(deltaYoy!)}
-              </span>
+              </span>{" "}
               vs an dernier
             </span>
           )}

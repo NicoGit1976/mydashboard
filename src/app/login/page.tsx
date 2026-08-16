@@ -92,6 +92,14 @@ export default function LoginPage() {
           <p className="mt-4 text-center text-[11px] leading-relaxed text-muted">
             Utilise les identifiants qui t&apos;ont été communiqués.
           </p>
+          <p className="mt-3 flex justify-center gap-4 text-[11px] text-muted">
+            <a href="/confidentialite" className="hover:text-ink-soft">
+              Confidentialité
+            </a>
+            <a href="/mentions-legales" className="hover:text-ink-soft">
+              Mentions légales
+            </a>
+          </p>
         </form>
       </div>
     </div>
