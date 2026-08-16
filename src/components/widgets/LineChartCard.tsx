@@ -1,8 +1,22 @@
 "use client";
 
-import type { EChartsOption } from "echarts";
-import EChart from "@/components/charts/EChart";
-import { C, CHART_PALETTE, splitLine, axisLabelStyle } from "@/lib/theme";
+import type { ChartConfiguration, ScriptableContext } from "chart.js";
+import Chart from "@/components/charts/Chart";
+import { C, CHART_PALETTE, categoryAxis, valueAxis } from "@/lib/theme";
+import { fmtInt } from "@/lib/format";
+
+// The soft wash under the sessions line. Built from the canvas context because
+// a gradient needs the drawing surface's real pixel height, which only exists
+// once the chart has laid itself out.
+function areaFill(ctx: ScriptableContext<"line">) {
+  const { chart } = ctx;
+  const { ctx: canvas, chartArea } = chart;
+  if (!chartArea) return "rgba(79,70,229,.16)";
+  const g = canvas.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  g.addColorStop(0, "rgba(79,70,229,.16)");
+  g.addColorStop(1, "rgba(79,70,229,0)");
+  return g;
+}
 
 export default function LineChartCard({
   labels,
@@ -15,68 +29,66 @@ export default function LineChartCard({
   users: number[];
   height?: number;
 }) {
-  const option: EChartsOption = {
-    color: CHART_PALETTE,
-    grid: { left: 4, right: 12, top: 32, bottom: 4, containLabel: true },
-    legend: {
-      top: 0,
-      right: 0,
-      icon: "roundRect",
-      itemWidth: 10,
-      itemHeight: 10,
-      itemGap: 16,
-      textStyle: { color: C.inkSoft, fontSize: 12 },
+  const config: ChartConfiguration<"line"> = {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Sessions",
+          data: sessions,
+          borderColor: CHART_PALETTE[0],
+          backgroundColor: areaFill,
+          borderWidth: 2.5,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: true,
+        },
+        {
+          label: "Visiteurs",
+          data: users,
+          borderColor: CHART_PALETTE[1],
+          borderWidth: 2.5,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: false,
+        },
+      ],
     },
-    tooltip: {
-      trigger: "axis",
-      backgroundColor: "#fff",
-      borderColor: C.border,
-      borderWidth: 1,
-      textStyle: { color: C.ink, fontSize: 12 },
-      padding: [8, 12],
-    },
-    xAxis: {
-      type: "category",
-      boundaryGap: false,
-      data: labels,
-      axisLabel: { ...axisLabelStyle, interval: 4 },
-      axisLine: { lineStyle: { color: C.border } },
-      axisTick: { show: false },
-    },
-    yAxis: {
-      type: "value",
-      splitLine,
-      axisLabel: axisLabelStyle,
-    },
-    series: [
-      {
-        name: "Sessions",
-        type: "line",
-        data: sessions,
-        smooth: true,
-        symbol: "none",
-        lineStyle: { width: 2.5 },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: "rgba(79,70,229,.16)" },
-              { offset: 1, color: "rgba(79,70,229,0)" },
-            ],
+    options: {
+      layout: { padding: { top: 4, right: 8 } },
+      interaction: { mode: "index", intersect: false },
+      scales: { x: categoryAxis, y: { ...valueAxis, beginAtZero: true } },
+      plugins: {
+        legend: {
+          align: "end",
+          labels: {
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: true,
+            pointStyle: "rectRounded",
+            color: C.inkSoft,
+            font: { size: 12 },
+            padding: 16,
+          },
+        },
+        tooltip: {
+          backgroundColor: "#fff",
+          borderColor: C.border,
+          borderWidth: 1,
+          titleColor: C.ink,
+          bodyColor: C.ink,
+          padding: 10,
+          displayColors: true,
+          callbacks: {
+            label: (item) => ` ${item.dataset.label} : ${fmtInt(Number(item.parsed.y))}`,
           },
         },
       },
-      {
-        name: "Visiteurs",
-        type: "line",
-        data: users,
-        smooth: true,
-        symbol: "none",
-        lineStyle: { width: 2.5 },
-      },
-    ],
+    },
   };
 
-  return <EChart option={option} height={height} />;
+  return <Chart config={config} height={height} />;
 }

@@ -1,5 +1,5 @@
 // Chart palette + style constants, mirrored from the CSS tokens in globals.css.
-// (ECharts needs raw color strings in JS, so we keep a JS copy here.)
+// (Chart.js needs raw colour strings in JS, so we keep a JS copy here.)
 export const CHART_PALETTE = [
   "#4f46e5", // brand / indigo
   "#06b6d4", // accent / cyan
@@ -21,7 +21,19 @@ export const C = {
   negative: "#e11d48",
 };
 
-// Reusable (function-free, so safe to import into server or client components).
-export const splitLine = { lineStyle: { color: C.grid } };
-export const axisLabelStyle = { color: C.muted, fontSize: 11 };
-export const axisLineStyle = { lineStyle: { color: C.border } };
+// Shared axis styling, in Chart.js's shape. Function-free, so these stay safe
+// to import from a server component.
+export const tickStyle = { color: C.muted, font: { size: 11 } };
+export const gridStyle = { color: C.grid, drawTicks: false };
+/** x-axis of a time-ish series: no vertical rules, no tick marks. */
+export const categoryAxis = {
+  grid: { display: false },
+  border: { color: C.border },
+  ticks: { ...tickStyle, autoSkip: true, maxTicksLimit: 8 },
+};
+/** y-axis of a value series: horizontal rules only. */
+export const valueAxis = {
+  grid: gridStyle,
+  border: { display: false },
+  ticks: tickStyle,
+};

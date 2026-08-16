@@ -1,8 +1,8 @@
 "use client";
 
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
-import type { EChartsOption } from "echarts";
-import EChart from "@/components/charts/EChart";
+import type { ChartConfiguration, ScriptableContext } from "chart.js";
+import Chart from "@/components/charts/Chart";
 import SourceBadge from "@/components/report/SourceBadge";
 import { fmtCompact, fmtDuration, fmtPct } from "@/lib/format";
 import { C } from "@/lib/theme";
@@ -41,30 +41,38 @@ export default function KpiCard({
   const color = good ? C.positive : C.negative;
   const hasSpark = spark.length > 0;
 
-  const option: EChartsOption = {
-    grid: { left: 0, right: 0, top: 4, bottom: 0 },
-    xAxis: { type: "category", show: true, data: spark.map((_, i) => i), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false } },
-    yAxis: { type: "value", show: false, scale: true },
-    tooltip: { show: false },
-    series: [
-      {
-        type: "line",
-        data: spark,
-        smooth: true,
-        symbol: "none",
-        lineStyle: { width: 2, color },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: good ? "rgba(22,163,74,.18)" : "rgba(225,29,72,.18)" },
-              { offset: 1, color: "rgba(255,255,255,0)" },
-            ],
-          },
+  // Sparkline: no axes, no grid, no interaction — it is a shape, not a chart.
+  const sparkFill = (ctx: ScriptableContext<'line'>) => {
+    const { chart } = ctx;
+    const area = chart.chartArea;
+    if (!area) return 'rgba(255,255,255,0)';
+    const g = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, good ? 'rgba(22,163,74,.18)' : 'rgba(225,29,72,.18)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    return g;
+  };
+
+  const sparkConfig: ChartConfiguration<'line'> = {
+    type: 'line',
+    data: {
+      labels: spark.map((_, i) => i),
+      datasets: [
+        {
+          data: spark,
+          borderColor: color,
+          backgroundColor: sparkFill,
+          borderWidth: 2,
+          tension: 0.4,
+          pointRadius: 0,
+          fill: true,
         },
-      },
-    ],
+      ],
+    },
+    options: {
+      layout: { padding: { top: 4 } },
+      scales: { x: { display: false }, y: { display: false } },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    },
   };
 
   return (
@@ -104,7 +112,7 @@ export default function KpiCard({
         </div>
         {hasSpark && (
           <div className="h-9 w-24 shrink-0">
-            <EChart option={option} height={36} />
+            <Chart config={sparkConfig} height={36} />
           </div>
         )}
       </div>
