@@ -27,8 +27,11 @@ export type FactSheet = {
   end: string;
   prevStart: string;
   prevEnd: string;
-  yoyStart: string;
-  yoyEnd: string;
+  yoyStart: string | null;
+  yoyEnd: string | null;
+  // Set when Search Console figures cover a window shifted back from the one
+  // the report announces (Google publishes ~2 days late).
+  gscWindow: { start: string; end: string } | null;
   days: number;
   live: boolean;
   liveSources: string[];
@@ -65,6 +68,12 @@ function round1(n: number): number {
 function scrub(s: string): string {
   return s
     .replace(/[\r\n\t]+/g, " ")
+    // U+2028/U+2029/U+0085 are line breaks too, and the fact sheet is a
+    // line-per-fact format: one of them inside a page path or a search query
+    // forges a whole extra "fact". Bidi overrides can reorder what a reader
+    // sees; zero-width characters hide inside a label.
+    .replace(/[\u2028\u2029\u0085]+/g, " ")
+    .replace(/[\u202A-\u202E\u2066-\u2069\u200B-\u200F\uFEFF]/g, "")
     .replace(/[\u0000-\u001F\u007F]/g, "")
     .replace(/[<>]/g, "")
     .trim()
@@ -162,6 +171,10 @@ export function buildFactSheet(
     end: data.range.end,
     yoyStart: data.range.yoyStart,
     yoyEnd: data.range.yoyEnd,
+    gscWindow:
+      data.liveSources.includes("gsc") && data.gscRange.end !== data.range.end
+        ? { start: data.gscRange.start, end: data.gscRange.end }
+        : null,
     prevStart: data.range.prevStart,
     prevEnd: data.range.prevEnd,
     days: data.range.days,
@@ -205,7 +218,14 @@ export function factsToText(sheet: FactSheet): string {
     `Client : ${sheet.client}${sheet.sector ? ` — secteur : ${sheet.sector}` : ""}`,
     `Période analysée : ${sheet.rangeLabel}, du ${fr(sheet.start)} au ${fr(sheet.end)} (${sheet.days} jours).`,
     `Période de comparaison : du ${fr(sheet.prevStart)} au ${fr(sheet.prevEnd)} (même durée).`,
-    `Même période l'an dernier : du ${fr(sheet.yoyStart)} au ${fr(sheet.yoyEnd)}.`,
+    ...(sheet.yoyStart && sheet.yoyEnd
+      ? [`Même période l'an dernier : du ${fr(sheet.yoyStart)} au ${fr(sheet.yoyEnd)}.`]
+      : []),
+    ...(sheet.gscWindow
+      ? [
+          `Attention : les chiffres Search Console couvrent du ${fr(sheet.gscWindow.start)} au ${fr(sheet.gscWindow.end)}, Google publiant avec environ deux jours de décalage.`,
+        ]
+      : []),
     `Sources connectées : ${sheet.liveSources.map((s) => SOURCE_LABEL[s] ?? s).join(", ") || "aucune"}.`,
     "",
   ];

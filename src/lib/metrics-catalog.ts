@@ -65,10 +65,10 @@ export const KPI_METRICS: Record<string, KpiMetric> = {
   gmb_calls: { label: "Appels (fiche Google)", value: 312, delta: 8.4, source: "gmb", spark: UP },
   gmb_directions: { label: "Demandes d'itinéraire", value: 1480, delta: 6.7, source: "gmb", spark: UP },
   // Cross-network (kept for backward compatibility)
-  gsc_clicks: { label: "Clics Google", value: 3820, delta: 9.2, source: "gmb", spark: UP },
-  gsc_impressions: { label: "Impressions Google", value: 96400, delta: 11.5, source: "gmb", spark: UP },
-  gsc_ctr: { label: "CTR Google", value: 4, delta: 0.4, source: "gmb", spark: UP, format: "percent" },
-  gsc_position: { label: "Position moyenne", value: 12, delta: 3.1, source: "gmb", spark: DOWN, invert: true },
+  gsc_clicks: { label: "Clics Google", value: 3820, delta: 9.2, source: "gsc", spark: UP },
+  gsc_impressions: { label: "Impressions Google", value: 96400, delta: 11.5, source: "gsc", spark: UP },
+  gsc_ctr: { label: "CTR Google", value: 4, delta: 0.4, source: "gsc", spark: UP, format: "percent" },
+  gsc_position: { label: "Position moyenne", value: 12, delta: 3.1, source: "gsc", spark: DOWN, invert: true },
   // First-party: clicks measured on our own short links.
   sl_clicks: { label: "Clics liens courts", value: 1240, delta: 14.2, source: "shortlink", spark: UP },
   sl_uniques: { label: "Visiteurs (liens courts)", value: 980, delta: 11.6, source: "shortlink", spark: UP },
@@ -121,7 +121,7 @@ export const WIDGET_BLUEPRINTS: Record<string, Blueprint> = {
   "donut:channels": { type: "donut", label: "Anneau · Canaux", title: "Canaux d'acquisition", subtitle: "Répartition des sessions", span: 4, sourceKey: "ga4", config: { dataset: "channels", centerValue: "48,2k", centerLabel: "sessions" } },
   "bar:networks": { type: "bar", label: "Barres · Réseaux", title: "Engagement par réseau", subtitle: "Interactions sur la période", span: 6, sourceKey: "instagram", config: { dataset: "networks" } },
   "table:pages": { type: "table", label: "Tableau · Top pages", title: "Pages les plus vues", subtitle: "Top 5 du site", span: 6, sourceKey: "matomo", config: { dataset: "topPages" } },
-  "table:queries": { type: "table", label: "Tableau · Requêtes Google", title: "Requêtes les plus performantes", subtitle: "Ce que les gens tapent pour vous trouver", span: 6, sourceKey: "gmb", config: { dataset: "topQueries" } },
+  "table:queries": { type: "table", label: "Tableau · Requêtes Google", title: "Requêtes les plus performantes", subtitle: "Ce que les gens tapent pour vous trouver", span: 6, sourceKey: "gsc", config: { dataset: "topQueries" } },
   content: { type: "content", label: "Bloc texte (HTML)", title: "Bloc de contenu", subtitle: "Texte libre (HTML)", span: 8, sourceKey: "manual", config: { html: "<h3>Titre de section</h3><p>Votre analyse ici — texte libre avec mise en forme <strong>HTML</strong>.</p>" } },
   "content:demo": { type: "content", label: "Analyse (démo)", title: "Analyse & recommandations", subtitle: "Bloc de contenu libre (HTML)", span: 8, sourceKey: "manual", config: { html: commentaryHtml } },
   illustration: { type: "illustration", label: "Illustration", span: 4, config: { illustration: "growth" } },

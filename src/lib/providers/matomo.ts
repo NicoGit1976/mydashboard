@@ -106,10 +106,14 @@ export async function fetchMatomo(
 
   // Every call is individually guarded: one failing endpoint must degrade that
   // section only, never discard the whole payload.
+  // Matomo keeps its own full history, so both comparison windows are always
+  // asked for — unlike Search Console, nothing is silently truncated.
   const [cur, prev, yoy, daily, referrers, pages] = await Promise.all([
     mfetch(base, token, { method: "API.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     mfetch(base, token, { method: "API.get", period: "range", date: prevRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
-    mfetch(base, token, { method: "API.get", period: "range", date: yoyRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
+    range.yoyStart
+      ? (mfetch(base, token, { method: "API.get", period: "range", date: yoyRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>)
+      : Promise.resolve(null),
     mfetch(base, token, { method: "VisitsSummary.get", period: "day", date: curRange, ...common }).catch(() => null) as Promise<Record<string, MatomoSummary> | null>,
     mfetch(base, token, { method: "Referrers.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     // flat=1 flattens Matomo's page-tree into plain paths, matching the table.

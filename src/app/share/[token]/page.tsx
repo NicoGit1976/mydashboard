@@ -104,6 +104,14 @@ export default async function SharedReportPage({
           : "Données de démonstration — ce rapport n'est alimenté par aucune source."}
       </p>
 
+      {data.liveSources.includes("gsc") && data.gscRange.end !== data.range.end && (
+        <p className="mt-1 text-center text-xs text-muted">
+          Les chiffres Search Console couvrent du {fr(data.gscRange.start)} au{" "}
+          {fr(data.gscRange.end)} : Google publie avec environ deux jours de
+          décalage.
+        </p>
+      )}
+
       <ReportFooter
         agencyName={client.owner.agencyName}
         agencyLogo={client.owner.agencyLogo}

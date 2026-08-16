@@ -51,6 +51,21 @@ function deltaYoy(cur: number, prev: number): { deltaYoy?: number } {
   return { deltaYoy: Math.round(((cur - prev) / prev) * 1000) / 10 };
 }
 
+// Search Console keeps roughly 16 months of history, and its API does NOT
+// fail on an older start date: it silently returns a total over the days it
+// happens to have. Comparing a full window against a truncated one invents a
+// trend — a perfectly flat site would be reported as +50 %. So a comparison
+// window that is not entirely inside the retention floor is not queried at all.
+const RETENTION_DAYS = 480;
+
+function withinRetention(start: string | null): start is string {
+  if (!start) return false;
+  const floor = new Date(Date.now() - RETENTION_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  return start >= floor;
+}
+
 export async function fetchGsc(
   token: string,
   siteUrl: string,
@@ -67,10 +82,15 @@ export async function fetchGsc(
     } | null>;
 
   // The caller already shifted this range back for Search Console's ~2-day lag.
+  const prevInRange = withinRetention(range.prevStart);
+  const yoyInRange = withinRetention(range.yoyStart);
+
   const [cur, prev, yoy, byDate, byPage, byQuery] = await Promise.all([
     query(range.start, range.end, []),
-    query(range.prevStart, range.prevEnd, []),
-    query(range.yoyStart, range.yoyEnd, []),
+    prevInRange ? query(range.prevStart, range.prevEnd, []) : null,
+    yoyInRange && range.yoyStart && range.yoyEnd
+      ? query(range.yoyStart, range.yoyEnd, [])
+      : null,
     query(range.start, range.end, ["date"], 500),
     query(range.start, range.end, ["page"], 5),
     query(range.start, range.end, ["query"], 15),
@@ -126,8 +146,8 @@ export async function fetchGsc(
   }
 
   let topPages: ProviderData["topPages"];
-  if (byPage?.rows?.length) {
-    const rows = byPage.rows
+  if (byPage) {
+    const rows = (byPage.rows ?? [])
       .map((r) => ({
         page: (r.keys?.[0] ?? "").replace(/^https?:\/\/[^/]+/, "") || "/",
         views: Math.round(r.clicks ?? 0),
@@ -137,14 +157,20 @@ export async function fetchGsc(
         bounce: null,
       }))
       .filter((r) => r.views > 0);
-    if (rows.length) topPages = rows;
+    topPages = rows;
   }
 
   // Queries are ordered by clicks (the API's default) and capped: a report
   // shows the handful that matter, not the long tail.
+  //
+  // An empty answer is a RESULT, not a failure: a young property, a quiet
+  // period, or queries kept under Google's anonymisation threshold all return
+  // no row. Leaving `topQueries` undefined there let the report fall back to
+  // the sample queries of a fictional spa hotel, printed under real Search
+  // Console figures. An empty table says the truth.
   let topQueries: ProviderData["topQueries"];
-  if (byQuery?.rows?.length) {
-    const rows = byQuery.rows
+  if (byQuery) {
+    const rows = (byQuery.rows ?? [])
       .filter((r) => r.keys?.[0])
       .map((r) => ({
         query: r.keys![0],
@@ -154,7 +180,7 @@ export async function fetchGsc(
         position: Math.round((r.position ?? 0) * 10) / 10,
       }))
       .filter((r) => r.impressions > 0);
-    if (rows.length) topQueries = rows;
+    topQueries = rows;
   }
 
   return { kpis, traffic, topPages, topQueries };

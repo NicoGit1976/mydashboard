@@ -7,6 +7,7 @@ export const SOURCES = {
   facebook: { label: "Facebook", color: "#1877F2" },
   instagram: { label: "Instagram", color: "#E1306C" },
   linkedin: { label: "LinkedIn", color: "#0A66C2" },
+  gsc: { label: "Search Console", color: "#4285F4" },
   gmb: { label: "Google Business", color: "#34A853" },
   manual: { label: "Manuel", color: "#8b91a7" },
 } as const;

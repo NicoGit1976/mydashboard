@@ -24,6 +24,10 @@ export type ReportData = {
   liveDatasets: string[]; // dataset keys (traffic/channels) filled live
   channelsTruncated: boolean; // the channel list is a top-N, not the whole
   range: DateRange; // the period actually queried — headers must state THIS
+  // Search Console publishes ~2 days late, so its figures cover a window
+  // shifted back from the one the header announces. Exposed so the report can
+  // say so instead of letting the two silently disagree.
+  gscRange: DateRange;
 };
 
 // ---------------------------------------------------------------------------
@@ -55,6 +59,7 @@ async function cachedFetch(
 const PROVIDER_BADGE: Record<string, SourceKey | undefined> = {
   matomo: "matomo",
   ga4: "ga4",
+  gsc: "gsc",
   shortlink: "shortlink",
 };
 
@@ -183,5 +188,14 @@ export async function getReportData(
     console.error(`[report-data] shortlink stats failed (client=${client.id}):`, err);
   }
 
-  return { kpis, datasets, liveSources, liveMetrics, liveDatasets, channelsTruncated, range };
+  return {
+    kpis,
+    datasets,
+    liveSources,
+    liveMetrics,
+    liveDatasets,
+    channelsTruncated,
+    range,
+    gscRange,
+  };
 }

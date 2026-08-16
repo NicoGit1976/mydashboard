@@ -129,11 +129,21 @@ export default async function ClientReportPage({
         )}
       </div>
 
-      <p className="no-print mt-6 text-center text-xs text-muted">
+      {/* NOT `no-print`: this line is the only thing that tells a reader the
+          figures are fictional, and the PDF is exactly where that reader is. */}
+      <p className="mt-6 text-center text-xs text-muted">
         {data.liveSources.length > 0
           ? `Données en direct · ${data.liveSources.map((s) => PROVIDER_LABEL[s] ?? s).join(", ")}`
           : "Données de démonstration — les vrais chiffres s'afficheront une fois les sources branchées."}
       </p>
+
+      {data.liveSources.includes("gsc") && data.gscRange.end !== data.range.end && (
+        <p className="mt-1 text-center text-xs text-muted">
+          Les chiffres Search Console couvrent du {fr(data.gscRange.start)} au{" "}
+          {fr(data.gscRange.end)} : Google publie avec environ deux jours de
+          décalage.
+        </p>
+      )}
 
       <ReportFooter
         agencyName={owner?.agencyName ?? null}

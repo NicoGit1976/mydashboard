@@ -73,8 +73,11 @@ export async function fetchGa4(
       { startDate: range.start, endDate: range.end },
       { startDate: range.prevStart, endDate: range.prevEnd },
       // GA4 accepts several windows in one report: the year-over-year
-      // comparison costs no extra round-trip.
-      { startDate: range.yoyStart, endDate: range.yoyEnd },
+      // comparison costs no extra round-trip. It is omitted when the range
+      // resolver judged that window not to be a second reading.
+      ...(range.yoyStart && range.yoyEnd
+        ? [{ startDate: range.yoyStart, endDate: range.yoyEnd }]
+        : []),
     ],
     metrics: METRIC_MAP.map((m) => ({ name: m.ga })),
   };

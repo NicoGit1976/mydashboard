@@ -12,8 +12,11 @@ export type DateRange = {
   end: string; // YYYY-MM-DD, inclusive
   prevStart: string; // same length, immediately before — for the delta
   prevEnd: string;
-  yoyStart: string; // same window one year earlier — the seasonal comparison
-  yoyEnd: string;
+  // Same window one year earlier — the seasonal comparison. null when that
+  // window would not be a SECOND reading: at 365 days it lands exactly on the
+  // previous period, and beyond a year it would overlap the analysed period.
+  yoyStart: string | null;
+  yoyEnd: string | null;
   days: number;
   granularity: Granularity; // how the curve should be bucketed
   label: string; // human label, e.g. "6 derniers mois"
@@ -73,6 +76,14 @@ export function resolveRange(
   if (report.periodDays === 0 && report.periodStart && report.periodEnd) {
     start = iso(report.periodStart);
     end = iso(report.periodEnd);
+    // A late-publishing provider must not be asked for days it cannot have:
+    // the preset branch already shifts for this, the custom branch used to
+    // ignore `lagDays` entirely and read the missing days as a collapse.
+    if (lagDays > 0) {
+      const latest = iso(daysAgo(1 + lagDays));
+      if (end > latest) end = latest;
+      if (start > end) start = end;
+    }
     label = `du ${fr(start)} au ${fr(end)}`;
   } else {
     const days = report.periodDays > 0 ? report.periodDays : 28;
@@ -86,8 +97,19 @@ export function resolveRange(
   const prevEnd = iso(new Date(Date.parse(start) - 86_400_000));
   const prevStart = iso(new Date(Date.parse(start) - days * 86_400_000));
 
-  const yoyStart = shiftOneYear(start);
-  const yoyEnd = iso(new Date(Date.parse(yoyStart) + (days - 1) * 86_400_000));
+  let yoyStart: string | null = shiftOneYear(start);
+  let yoyEnd: string | null = iso(
+    new Date(Date.parse(yoyStart) + (days - 1) * 86_400_000),
+  );
+  // Two windows make the year-over-year reading meaningless rather than wrong-
+  // looking, so it is dropped instead of shown: a 12-month period whose
+  // year-ago window IS the previous period (the same percentage printed twice
+  // under two labels), and any period of a year or more whose year-ago window
+  // runs into the period being analysed.
+  if (yoyEnd >= start || (yoyStart === prevStart && yoyEnd === prevEnd)) {
+    yoyStart = null;
+    yoyEnd = null;
+  }
 
   return {
     start,
