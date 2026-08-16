@@ -19,6 +19,7 @@ export default function KpiCard({
   label,
   value,
   delta,
+  deltaYoy,
   source,
   spark,
   format,
@@ -28,6 +29,7 @@ export default function KpiCard({
   label: string;
   value: number;
   delta?: number;
+  deltaYoy?: number;
   source: SourceKey;
   spark: number[];
   format?: string;
@@ -39,6 +41,10 @@ export default function KpiCard({
   // "good" respects lower-is-better metrics (bounce rate): a drop is positive.
   const good = !hasDelta || (invert ? delta! <= 0 : delta! >= 0);
   const color = good ? C.positive : C.negative;
+  // Year-over-year: the comparison that survives seasonality. Shown second and
+  // quieter — it explains the headline delta, it doesn't replace it.
+  const hasYoy = typeof deltaYoy === "number";
+  const yoyGood = hasYoy && (invert ? deltaYoy! <= 0 : deltaYoy! >= 0);
   const hasSpark = spark.length > 0;
 
   // Sparkline: no axes, no grid, no interaction — it is a shape, not a chart.
@@ -107,6 +113,14 @@ export default function KpiCard({
           ) : (
             <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
               <Minus size={14} /> tendance n/d
+            </span>
+          )}
+          {hasYoy && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted">
+              <span style={{ color: yoyGood ? C.positive : C.negative }}>
+                {fmtPct(deltaYoy!)}
+              </span>
+              vs an dernier
             </span>
           )}
         </div>

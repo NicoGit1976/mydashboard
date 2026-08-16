@@ -49,6 +49,12 @@ function delta(cur: number, prev: number): { delta?: number } {
   return { delta: Math.round(((cur - prev) / prev) * 1000) / 10 };
 }
 
+// A client that didn't exist a year ago has no year-over-year trend to state.
+function deltaYoy(cur: number, prev: number): { deltaYoy?: number } {
+  if (!prev) return {};
+  return { deltaYoy: Math.round(((cur - prev) / prev) * 1000) / 10 };
+}
+
 type GaRow = {
   dimensionValues?: { value: string }[];
   metricValues?: { value: string }[];
@@ -66,6 +72,9 @@ export async function fetchGa4(
     dateRanges: [
       { startDate: range.start, endDate: range.end },
       { startDate: range.prevStart, endDate: range.prevEnd },
+      // GA4 accepts several windows in one report: the year-over-year
+      // comparison costs no extra round-trip.
+      { startDate: range.yoyStart, endDate: range.yoyEnd },
     ],
     metrics: METRIC_MAP.map((m) => ({ name: m.ga })),
   };
@@ -97,11 +106,14 @@ export async function fetchGa4(
     rows.find((r) => r.dimensionValues?.[0]?.value === "date_range_0") ?? rows[0];
   const prevRow =
     rows.find((r) => r.dimensionValues?.[0]?.value === "date_range_1") ?? rows[1];
+  const yoyRow =
+    rows.find((r) => r.dimensionValues?.[0]?.value === "date_range_2") ?? rows[2];
   METRIC_MAP.forEach((m, i) => {
     const scale = m.scale ?? 1;
     const cur = Number(curRow?.metricValues?.[i]?.value ?? 0) * scale;
     const prev = Number(prevRow?.metricValues?.[i]?.value ?? 0) * scale;
-    kpis[m.key] = { value: Math.round(cur), ...delta(cur, prev) };
+    const yoy = Number(yoyRow?.metricValues?.[i]?.value ?? 0) * scale;
+    kpis[m.key] = { value: Math.round(cur), ...delta(cur, prev), ...deltaYoy(cur, yoy) };
   });
 
   let trafficOut: ProviderData["traffic"];

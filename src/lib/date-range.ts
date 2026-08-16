@@ -12,6 +12,8 @@ export type DateRange = {
   end: string; // YYYY-MM-DD, inclusive
   prevStart: string; // same length, immediately before — for the delta
   prevEnd: string;
+  yoyStart: string; // same window one year earlier — the seasonal comparison
+  yoyEnd: string;
   days: number;
   granularity: Granularity; // how the curve should be bucketed
   label: string; // human label, e.g. "6 derniers mois"
@@ -38,6 +40,15 @@ function granularityFor(days: number): Granularity {
   if (days <= 31) return "day";
   if (days <= 120) return "week";
   return "month";
+}
+
+// Same calendar window one year earlier. A previous-period delta compares
+// December to November; a year-over-year delta compares December to December,
+// which is the only fair reading for a seasonal business.
+function shiftOneYear(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  // 29 February in a non-leap year rolls to 1 March — the nearest real day.
+  return iso(new Date(Date.UTC(y - 1, m - 1, d)));
 }
 
 function diffDays(start: string, end: string): number {
@@ -75,7 +86,20 @@ export function resolveRange(
   const prevEnd = iso(new Date(Date.parse(start) - 86_400_000));
   const prevStart = iso(new Date(Date.parse(start) - days * 86_400_000));
 
-  return { start, end, prevStart, prevEnd, days, granularity: granularityFor(days), label };
+  const yoyStart = shiftOneYear(start);
+  const yoyEnd = iso(new Date(Date.parse(yoyStart) + (days - 1) * 86_400_000));
+
+  return {
+    start,
+    end,
+    prevStart,
+    prevEnd,
+    yoyStart,
+    yoyEnd,
+    days,
+    granularity: granularityFor(days),
+    label,
+  };
 }
 
 export function fr(isoDate: string): string {

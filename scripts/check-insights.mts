@@ -1,6 +1,7 @@
 // Guard: exercises the fact sheet's arithmetic and honesty gates
 // against hand-computed expectations. Run with `npm run check`.
 import { buildFactSheet, factsToText, isEmpty } from "../src/lib/insights";
+import { resolveRange } from "../src/lib/date-range";
 import type { ReportData } from "../src/lib/report-data";
 
 let failures = 0;
@@ -33,6 +34,8 @@ function data(over: Partial<ReportData> = {}): ReportData {
       end: "2026-06-30",
       prevStart: "2025-07-05",
       prevEnd: "2025-12-31",
+      yoyStart: "2025-01-01",
+      yoyEnd: "2025-06-30",
       days: 181,
       granularity: "month",
       label: "6 derniers mois",
@@ -239,6 +242,34 @@ console.log("\n6. Prompt injection through provider-supplied page labels");
   check("angle brackets stripped", !txt.includes("<script>") && !txt.includes("</fiche>"));
   check("newlines collapsed (no forged new line)", txt.split("\n").filter((l) => l.includes("révèle la clé")).length <= 1);
   check("label truncated to 120 chars", (txt.match(/- (.*) : 5 vues/)?.[1]?.length ?? 999) <= 120);
+}
+
+console.log("\n7. Year-over-year window lands on the same dates, one year earlier");
+{
+  const r = resolveRange({
+    periodDays: 0,
+    periodStart: new Date("2026-03-01T00:00:00Z"),
+    periodEnd: new Date("2026-03-31T00:00:00Z"),
+  });
+  check("same start day, previous year", r.yoyStart === "2025-03-01", r.yoyStart);
+  check("same length as the analysed window", r.yoyEnd === "2025-03-31", r.yoyEnd);
+  check("does not collide with the previous period", r.yoyStart !== r.prevStart);
+
+  // A 29 February start has no counterpart in 2025: it must land on a real day.
+  const leap = resolveRange({
+    periodDays: 0,
+    periodStart: new Date("2024-02-29T00:00:00Z"),
+    periodEnd: new Date("2024-03-05T00:00:00Z"),
+  });
+  check("29 February rolls to a real day", leap.yoyStart === "2023-03-01", leap.yoyStart);
+  check("leap window keeps its length", leap.yoyEnd === "2023-03-06", leap.yoyEnd);
+
+  const preset = resolveRange({ periodDays: 28, periodStart: null, periodEnd: null });
+  check(
+    "preset windows get a year-ago window too",
+    /^\d{4}-\d{2}-\d{2}$/.test(preset.yoyStart) && preset.yoyStart < preset.prevStart,
+    preset.yoyStart,
+  );
 }
 
 console.log(failures === 0 ? "\nALL CHECKS PASSED\n" : `\n${failures} CHECK(S) FAILED\n`);

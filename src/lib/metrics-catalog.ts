@@ -22,6 +22,7 @@ export type KpiMetric = {
   label: string;
   value: number;
   delta?: number; // undefined = trend unknown (a live provider gave no comparison)
+  deltaYoy?: number; // vs the same window last year; absent when unavailable
   source: SourceKey;
   spark: number[];
   format?: KpiFormat;

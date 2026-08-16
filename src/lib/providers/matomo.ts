@@ -71,6 +71,12 @@ function delta(cur: number, prev: number): { delta?: number } {
   return { delta: Math.round(((cur - prev) / prev) * 1000) / 10 };
 }
 
+// Same window one year earlier — the comparison that survives seasonality.
+function deltaYoy(cur: number, prev: number): { deltaYoy?: number } {
+  if (!prev) return {};
+  return { deltaYoy: Math.round(((cur - prev) / prev) * 1000) / 10 };
+}
+
 
 
 type MatomoSummary = Record<string, unknown>;
@@ -95,13 +101,15 @@ export async function fetchMatomo(
   // The report's real period, and the same-length window before it.
   const curRange = `${range.start},${range.end}`;
   const prevRange = `${range.prevStart},${range.prevEnd}`;
+  const yoyRange = `${range.yoyStart},${range.yoyEnd}`;
   const common = { idSite: siteId };
 
   // Every call is individually guarded: one failing endpoint must degrade that
   // section only, never discard the whole payload.
-  const [cur, prev, daily, referrers, pages] = await Promise.all([
+  const [cur, prev, yoy, daily, referrers, pages] = await Promise.all([
     mfetch(base, token, { method: "API.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     mfetch(base, token, { method: "API.get", period: "range", date: prevRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
+    mfetch(base, token, { method: "API.get", period: "range", date: yoyRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     mfetch(base, token, { method: "VisitsSummary.get", period: "day", date: curRange, ...common }).catch(() => null) as Promise<Record<string, MatomoSummary> | null>,
     mfetch(base, token, { method: "Referrers.get", period: "range", date: curRange, ...common }).catch(() => null) as Promise<MatomoSummary | null>,
     // flat=1 flattens Matomo's page-tree into plain paths, matching the table.
@@ -122,7 +130,11 @@ export async function fetchMatomo(
     const val = scaleToInt ? Math.round(c) : c;
     // Omit delta when the previous period is unavailable — an honest "no trend"
     // instead of a fabricated 0 %.
-    kpis[key] = prev ? { value: val, ...delta(c, num(prev[curName])) } : { value: val };
+    kpis[key] = {
+      value: val,
+      ...(prev ? delta(c, num(prev[curName])) : {}),
+      ...(yoy ? deltaYoy(c, num(yoy[curName])) : {}),
+    };
   };
   // No summary ⇒ emit no KPIs at all. Emitting zeros would overwrite the mock
   // with fake "real" data, which is worse than showing nothing.

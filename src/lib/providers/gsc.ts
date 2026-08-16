@@ -44,6 +44,13 @@ function delta(cur: number, prev: number): { delta?: number } {
   return { delta: Math.round(((cur - prev) / prev) * 1000) / 10 };
 }
 
+// Same shape, one year earlier. Absent when the site had no Search Console
+// history back then rather than reported as a spectacular gain from zero.
+function deltaYoy(cur: number, prev: number): { deltaYoy?: number } {
+  if (!prev) return {};
+  return { deltaYoy: Math.round(((cur - prev) / prev) * 1000) / 10 };
+}
+
 export async function fetchGsc(
   token: string,
   siteUrl: string,
@@ -60,9 +67,10 @@ export async function fetchGsc(
     } | null>;
 
   // The caller already shifted this range back for Search Console's ~2-day lag.
-  const [cur, prev, byDate, byPage, byQuery] = await Promise.all([
+  const [cur, prev, yoy, byDate, byPage, byQuery] = await Promise.all([
     query(range.start, range.end, []),
     query(range.prevStart, range.prevEnd, []),
+    query(range.yoyStart, range.yoyEnd, []),
     query(range.start, range.end, ["date"], 500),
     query(range.start, range.end, ["page"], 5),
     query(range.start, range.end, ["query"], 15),
@@ -70,20 +78,24 @@ export async function fetchGsc(
 
   const c = cur?.rows?.[0];
   const p = prev?.rows?.[0];
+  const y = yoy?.rows?.[0];
 
   const kpis: ProviderData["kpis"] = {};
   if (c) {
     kpis.gsc_clicks = {
       value: Math.round(c.clicks ?? 0),
       ...(p ? delta(c.clicks ?? 0, p.clicks ?? 0) : {}),
+      ...(y ? deltaYoy(c.clicks ?? 0, y.clicks ?? 0) : {}),
     };
     kpis.gsc_impressions = {
       value: Math.round(c.impressions ?? 0),
       ...(p ? delta(c.impressions ?? 0, p.impressions ?? 0) : {}),
+      ...(y ? deltaYoy(c.impressions ?? 0, y.impressions ?? 0) : {}),
     };
     kpis.gsc_ctr = {
       value: Math.round((c.ctr ?? 0) * 1000) / 10,
       ...(p ? delta(c.ctr ?? 0, p.ctr ?? 0) : {}),
+      ...(y ? deltaYoy(c.ctr ?? 0, y.ctr ?? 0) : {}),
     };
     kpis.gsc_position = {
       value: Math.round((c.position ?? 0) * 10) / 10,
@@ -91,6 +103,7 @@ export async function fetchGsc(
       // in the catalog, which is what marks "lower is better" — pre-inverting
       // here as well flipped it twice and called every improvement a decline.
       ...(p ? delta(c.position ?? 0, p.position ?? 0) : {}),
+      ...(y ? deltaYoy(c.position ?? 0, y.position ?? 0) : {}),
     };
   }
 

@@ -69,7 +69,13 @@ function applyKpis(
     if (!kpis[key]) continue;
     // Live value ⇒ delta is whatever the provider computed (may be undefined =
     // "no trend"); drop the mock spark so a live KPI can't show a fake curve.
-    kpis[key] = { ...kpis[key], value: v.value, delta: v.delta, spark: [] };
+    kpis[key] = {
+      ...kpis[key],
+      value: v.value,
+      delta: v.delta,
+      deltaYoy: v.deltaYoy,
+      spark: [],
+    };
     if (badge) kpis[key].source = badge;
     liveMetrics.push(key);
   }

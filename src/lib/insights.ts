@@ -15,6 +15,7 @@ export type FactKpi = {
   label: string;
   formatted: string;
   delta: number | null; // % vs previous period; null = provider gave no trend
+  yoy: number | null; // % vs the same window last year; null = no history
   invert: boolean; // lower is better (bounce rate, average position)
 };
 
@@ -26,6 +27,8 @@ export type FactSheet = {
   end: string;
   prevStart: string;
   prevEnd: string;
+  yoyStart: string;
+  yoyEnd: string;
   days: number;
   live: boolean;
   liveSources: string[];
@@ -97,6 +100,7 @@ export function buildFactSheet(
       label: m.label,
       formatted: formatValue(m.value, m.format),
       delta: typeof m.delta === "number" ? round1(m.delta) : null,
+      yoy: typeof m.deltaYoy === "number" ? round1(m.deltaYoy) : null,
       invert: Boolean(m.invert),
     }));
 
@@ -156,6 +160,8 @@ export function buildFactSheet(
     rangeLabel: data.range.label,
     start: data.range.start,
     end: data.range.end,
+    yoyStart: data.range.yoyStart,
+    yoyEnd: data.range.yoyEnd,
     prevStart: data.range.prevStart,
     prevEnd: data.range.prevEnd,
     days: data.range.days,
@@ -199,12 +205,15 @@ export function factsToText(sheet: FactSheet): string {
     `Client : ${sheet.client}${sheet.sector ? ` — secteur : ${sheet.sector}` : ""}`,
     `Période analysée : ${sheet.rangeLabel}, du ${fr(sheet.start)} au ${fr(sheet.end)} (${sheet.days} jours).`,
     `Période de comparaison : du ${fr(sheet.prevStart)} au ${fr(sheet.prevEnd)} (même durée).`,
+    `Même période l'an dernier : du ${fr(sheet.yoyStart)} au ${fr(sheet.yoyEnd)}.`,
     `Sources connectées : ${sheet.liveSources.map((s) => SOURCE_LABEL[s] ?? s).join(", ") || "aucune"}.`,
     "",
   ];
 
   if (sheet.kpis.length) {
-    lines.push("INDICATEURS (valeur sur la période, évolution vs période de comparaison) :");
+    lines.push(
+      "INDICATEURS (valeur sur la période, évolution vs période de comparaison, puis vs la même période l'an dernier quand la source en dispose) :",
+    );
     for (const k of sheet.kpis) {
       let trend = "évolution non fournie par la source";
       if (k.delta !== null) {
@@ -212,7 +221,13 @@ export function factsToText(sheet: FactSheet): string {
         const good = k.delta === 0 ? "neutre" : (k.delta > 0) !== k.invert ? "favorable" : "défavorable";
         trend = `${dir} de ${Math.abs(k.delta)} % — ${good}`;
       }
-      lines.push(`- ${k.label} : ${k.formatted} (${trend})`);
+      let yoy = "";
+      if (k.yoy !== null) {
+        const dir = k.yoy > 0 ? "hausse" : k.yoy < 0 ? "baisse" : "stable";
+        const good = k.yoy === 0 ? "neutre" : (k.yoy > 0) !== k.invert ? "favorable" : "défavorable";
+        yoy = ` ; sur un an : ${dir} de ${Math.abs(k.yoy)} % — ${good}`;
+      }
+      lines.push(`- ${k.label} : ${k.formatted} (${trend}${yoy})`);
     }
     lines.push("");
   }

@@ -44,6 +44,7 @@ export default function WidgetRenderer({
           label={m.label}
           value={m.value}
           delta={m.delta}
+          deltaYoy={m.deltaYoy}
           source={m.source}
           spark={m.spark}
           format={m.format}

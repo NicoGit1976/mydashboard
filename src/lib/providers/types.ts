@@ -4,7 +4,10 @@ export type ProviderData = {
   // metric id (from metrics-catalog) -> live value + delta (% vs previous
   // period). delta omitted when the provider can't compute a comparison —
   // better an honest "no trend" than a fake 0 %.
-  kpis: Record<string, { value: number; delta?: number }>;
+  // `deltaYoy` compares the same window one year earlier — only the providers
+  // with real history (GA4, Matomo, Search Console) can supply it, and it stays
+  // absent when the client had no data back then.
+  kpis: Record<string, { value: number; delta?: number; deltaYoy?: number }>;
   // `unit` names what `sessions` actually counts, because not every provider
   // measures sessions: Search Console returns clicks and impressions. Reports
   // (and the AI fact sheet) must label the curve with the real unit.
