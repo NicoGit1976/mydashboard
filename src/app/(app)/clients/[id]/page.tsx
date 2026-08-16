@@ -2,7 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getActor, getClientFor } from "@/lib/access";
-import { getOrCreateReport } from "@/lib/report";
+import { getOrCreateReport, clientProviders } from "@/lib/report";
+import { REPORT_TEMPLATES, buildTemplateLayout } from "@/lib/report-templates";
+import { visibleClientsWhere } from "@/lib/access";
 import { getReportData } from "@/lib/report-data";
 import { fr } from "@/lib/date-range";
 import { SPAN_CLASS } from "@/components/report/span";
@@ -10,6 +12,7 @@ import ReportHeader from "@/components/report/ReportHeader";
 import WidgetRenderer from "@/components/report/WidgetRenderer";
 import WidgetFrame from "@/components/report/WidgetFrame";
 import AddWidgetPanel from "@/components/report/AddWidgetPanel";
+import TemplatePanel from "@/components/report/TemplatePanel";
 import ReportFooter from "@/components/report/ReportFooter";
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -47,6 +50,26 @@ export default async function ClientReportPage({
     where: { id: session.user.id },
     select: { agencyName: true, agencyLogo: true, footerNote: true },
   });
+
+  // Template choices are computed against THIS client's attributed sources, so
+  // the panel can say up front how many blocks each one would actually lay
+  // down — and grey out the ones that would land empty.
+  const providers = editMode ? await clientProviders(client.id) : [];
+  const templates = editMode
+    ? REPORT_TEMPLATES.map((t) => ({
+        key: t.key,
+        label: t.label,
+        description: t.description,
+        blocks: buildTemplateLayout(t, providers).length,
+      }))
+    : [];
+  const otherClients = editMode
+    ? await db.client.findMany({
+        where: { AND: [{ id: { not: client.id } }, visibleClientsWhere(actor)] },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-6">
@@ -88,7 +111,16 @@ export default async function ClientReportPage({
           </div>
         ))}
 
-        {editMode && <AddWidgetPanel reportId={report.id} clientId={id} />}
+        {editMode && (
+          <>
+            <AddWidgetPanel reportId={report.id} clientId={id} />
+            <TemplatePanel
+              clientId={id}
+              templates={templates}
+              otherClients={otherClients}
+            />
+          </>
+        )}
 
         {widgets.length === 0 && !editMode && (
           <p className="col-span-12 rounded-card border border-dashed border-border bg-surface p-8 text-center text-sm text-muted">

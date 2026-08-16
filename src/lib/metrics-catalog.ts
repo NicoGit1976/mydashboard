@@ -13,7 +13,8 @@ export type WidgetType =
   | "content"
   | "illustration"
   | "ai"
-  | "icon";
+  | "icon"
+  | "section";
 
 export type KpiFormat = "number" | "percent" | "duration";
 
@@ -99,6 +100,12 @@ export const WIDGET_BLUEPRINTS: Record<string, Blueprint> = {
   "kpi:gsc_impressions": { type: "kpi", label: "KPI · Impressions Google", span: 3, config: { metric: "gsc_impressions" } },
   "kpi:gsc_ctr": { type: "kpi", label: "KPI · CTR Google", span: 3, config: { metric: "gsc_ctr" } },
   "kpi:gsc_position": { type: "kpi", label: "KPI · Position moyenne", span: 3, config: { metric: "gsc_position" } },
+  "kpi:bounce_rate": { type: "kpi", label: "KPI · Taux de rebond", span: 3, config: { metric: "bounce_rate" } },
+  "kpi:avg_duration": { type: "kpi", label: "KPI · Durée moy. session", span: 3, config: { metric: "avg_duration" } },
+  "kpi:new_users": { type: "kpi", label: "KPI · Nouveaux visiteurs", span: 3, config: { metric: "new_users" } },
+  "kpi:fb_likes": { type: "kpi", label: "KPI · J'aime de la Page", span: 3, config: { metric: "fb_likes" } },
+  "kpi:fb_engagement": { type: "kpi", label: "KPI · Engagement FB", span: 3, config: { metric: "fb_engagement" } },
+  "kpi:li_engagement_rate": { type: "kpi", label: "KPI · Taux d'engagement LinkedIn", span: 3, config: { metric: "li_engagement_rate" } },
   "kpi:sl_clicks": { type: "kpi", label: "KPI · Clics liens courts", span: 3, config: { metric: "sl_clicks" } },
   "kpi:sl_uniques": { type: "kpi", label: "KPI · Visiteurs liens courts", span: 3, config: { metric: "sl_uniques" } },
   "kpi:social": { type: "kpi", label: "KPI · Engagement", span: 3, config: { metric: "social" } },
@@ -118,31 +125,34 @@ export const WIDGET_BLUEPRINTS: Record<string, Blueprint> = {
   illustration: { type: "illustration", label: "Illustration", span: 4, config: { illustration: "growth" } },
   ai: { type: "ai", label: "Résumé IA ✨", title: "Résumé IA", subtitle: "Synthèse générée par Claude", span: 12, config: { tone: "neutral", html: "" } },
   icon: { type: "icon", label: "Icône ✦", span: 3, config: { icon: "Star", shape: "circle", bg: "#ececfe", border: "", iconColor: "#4f46e5" } },
+  // Chapter divider. A long report reads as one undifferentiated wall of cards
+  // without them; these give the client something to navigate by.
+  section: { type: "section", label: "Titre de section ▬", span: 12, config: { heading: "Titre de section" } },
 };
 
 // The palette offered in edit mode (excludes the demo-only content block).
 export const WIDGET_PALETTE = [
-  "ai",
-  "kpi:sessions", "kpi:visitors", "kpi:pageviews", "kpi:conversions",
+  "ai", "section",
+  "kpi:sessions", "kpi:visitors", "kpi:pageviews", "kpi:new_users",
+  "kpi:bounce_rate", "kpi:avg_duration", "kpi:conversions",
   "kpi:gsc_clicks", "kpi:gsc_impressions", "kpi:gsc_ctr", "kpi:gsc_position",
   "kpi:sl_clicks", "kpi:sl_uniques",
   "kpi:social", "kpi:gmb", "kpi:gmb_searches",
-  "kpi:ig", "kpi:ig_reach", "kpi:fb_reach", "kpi:li", "kpi:li_impressions",
+  "kpi:ig", "kpi:ig_reach", "kpi:fb_likes", "kpi:fb_reach", "kpi:fb_engagement",
+  "kpi:li", "kpi:li_impressions", "kpi:li_engagement_rate",
   "icon",
   "line:traffic", "donut:channels", "bar:networks", "table:pages",
   "content", "illustration",
 ].map((key) => ({ key, label: WIDGET_BLUEPRINTS[key].label }));
 
-// Starter layout created for a client's first report. Uses the NEUTRAL content
-// block (not content:demo — that injects a fabricated analysis about the demo
-// hotel that must never appear in a real client's report unprompted).
+// Fallback layout for a client with no attributed source yet. Kept minimal on
+// purpose — the real starter layout comes from a template chosen against the
+// client's actual sources (see report-templates.ts). Everything here must be a
+// key that exists in WIDGET_BLUEPRINTS: an unknown key crashes report creation.
 export const DEFAULT_REPORT_LAYOUT = [
-  // Only metrics a connector can actually fill: no provider emits `social` or
-  // any gmb_* key, so seeding them made every new report show invented numbers
-  // that could never turn live. They stay in the library for manual use.
   "kpi:sessions", "kpi:visitors", "kpi:pageviews", "kpi:bounce_rate",
-  "line:traffic", "donut:channels", "bar:networks", "table:pages",
-  "content", "illustration",
+  "line:traffic", "table:pages",
+  "content",
 ];
 
 // Tones for the AI report summary widget.

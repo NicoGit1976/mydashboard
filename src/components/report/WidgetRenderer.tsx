@@ -8,6 +8,7 @@ import TableCard from "@/components/widgets/TableCard";
 import ContentBlock from "@/components/widgets/ContentBlock";
 import IllustrationBlock from "@/components/widgets/IllustrationBlock";
 import IconBlock from "@/components/widgets/IconBlock";
+import SectionBand from "@/components/widgets/SectionBand";
 import type { ReportData } from "@/lib/report-data";
 import type { SourceKey } from "@/lib/sources";
 import { fmtCompact } from "@/lib/format";
@@ -109,6 +110,8 @@ export default function WidgetRenderer({
           iconColor={cfg.iconColor}
         />
       );
+    case "section":
+      return <SectionBand heading={cfg.heading} color={cfg.color} />;
     case "illustration":
       return <IllustrationBlock illustration={cfg.illustration} color={cfg.color} />;
     default:

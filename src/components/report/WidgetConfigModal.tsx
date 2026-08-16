@@ -55,6 +55,10 @@ export default function WidgetConfigModal({
   // Illustration picker state
   const [illustration, setIllustration] = useState(cfg.illustration ?? "growth");
 
+  // Section band state
+  const [heading, setHeading] = useState(cfg.heading ?? "");
+  const [bandColor, setBandColor] = useState(cfg.color || "#2c3550");
+
   // Icon widget state
   const [iconName, setIconName] = useState(cfg.icon || "Star");
   const [iconQuery, setIconQuery] = useState("");
@@ -71,6 +75,10 @@ export default function WidgetConfigModal({
     if (widget.type === "kpi") newConfig.metric = metric;
     if (widget.type === "content") newConfig.html = html;
     if (widget.type === "illustration") newConfig.illustration = illustration;
+    if (widget.type === "section") {
+      newConfig.heading = heading;
+      newConfig.color = bandColor;
+    }
     if (widget.type === "icon") {
       newConfig.icon = iconName;
       newConfig.shape = shape;
@@ -211,6 +219,41 @@ export default function WidgetConfigModal({
                       Aperçu
                     </p>
                     <div className="prose-block" dangerouslySetInnerHTML={{ __html: html }} />
+                  </div>
+                </div>
+              )}
+
+              {widget.type === "section" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-ink-soft">
+                      Titre de la section
+                    </label>
+                    <input
+                      value={heading}
+                      onChange={(e) => setHeading(e.target.value)}
+                      placeholder="Vue du trafic web"
+                      className={`mt-1 ${inputCls}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink-soft">
+                      Couleur du bandeau
+                    </label>
+                    <input
+                      type="color"
+                      value={bandColor}
+                      onChange={(e) => setBandColor(e.target.value)}
+                      className="mt-1 h-9 w-full cursor-pointer rounded-lg border border-border bg-white p-1"
+                    />
+                  </div>
+                  <div
+                    className="rounded-card px-5 py-3.5"
+                    style={{ background: bandColor }}
+                  >
+                    <span className="text-sm font-semibold uppercase tracking-[0.08em] text-white">
+                      {heading.trim() || "Titre de section"}
+                    </span>
                   </div>
                 </div>
               )}
